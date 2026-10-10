@@ -12,6 +12,8 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier: bundleId,
+    // Signing team for device builds (Apple Developer team ID).
+    appleTeamId: process.env.APPLE_TEAM_ID,
     supportsTablet: false,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
