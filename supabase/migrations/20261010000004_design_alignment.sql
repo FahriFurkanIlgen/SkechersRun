@@ -1,3 +1,7 @@
+-- PostGIS lives in the `extensions` schema; hosted Supabase does not put it on the
+-- migration role's search_path, so set it explicitly.
+set search_path = public, extensions;
+
 -- Additions required by the v0.1 UI design:
 --   * per-activity route sharing mode (hide ends / stats only / full route)
 --   * "show me in leaderboards" preference

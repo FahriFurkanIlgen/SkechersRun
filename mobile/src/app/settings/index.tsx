@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Platform, View } from 'react-native';
 import { Icon } from '../../components/Icon';
 import { Banner, Button, Group, IconButton, NavRow, Screen, Segmented, SwitchRow, Txt } from '../../components/ui';
 import { privacyZoneRepo } from '../../data/local/privacyZoneRepo';
@@ -10,6 +10,7 @@ import type { NotificationPrefs } from '../../domain/types';
 import { VISIBILITY_OPTIONS } from '../../features/activity/visibility';
 import { exportLocalData } from '../../features/profile/exportData';
 import { profileActions } from '../../features/profile/profileActions';
+import { getBatteryAdvice, openBatterySettings } from '../../services/batteryGuidance';
 import { health } from '../../services/health';
 import { getLocationAccess, openAppSettings, type LocationAccess } from '../../services/location/permissions';
 import { useAuth } from '../../state/authStore';
@@ -31,12 +32,14 @@ export default function Settings() {
   const session = useAuth((st) => st.session);
   const [access, setAccess] = useState<LocationAccess | null>(null);
   const [zoneCount, setZoneCount] = useState(0);
+  const [batteryOptimized, setBatteryOptimized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       void getLocationAccess().then(setAccess);
       void privacyZoneRepo.list().then((z) => setZoneCount(z.length));
+      void getBatteryAdvice().then((a) => setBatteryOptimized(a !== null));
     }, []),
   );
 
@@ -96,7 +99,16 @@ export default function Settings() {
           value={s.showInLeaderboards}
           onChange={(v) => run(() => profileActions.save({ showInLeaderboards: v }))}
         />
-        <NavRow label="Konum izni" value={access ? ACCESS_TEXT[access] : '…'} onPress={openAppSettings} last />
+        <NavRow label="Konum izni" value={access ? ACCESS_TEXT[access] : '…'} onPress={openAppSettings} last={Platform.OS !== 'android'} />
+        {Platform.OS === 'android' ? (
+          <NavRow
+            label="Pil optimizasyonu"
+            sub="Uzun aktivitelerde kaydın kesilmemesi için kapalı olmalı"
+            value={batteryOptimized ? 'Açık' : 'Kapalı'}
+            onPress={() => void openBatterySettings()}
+            last
+          />
+        ) : null}
       </Group>
 
       <Group title="Birimler ve görünüm">

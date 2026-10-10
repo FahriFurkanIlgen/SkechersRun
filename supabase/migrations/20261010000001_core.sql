@@ -1,3 +1,7 @@
+-- PostGIS lives in the `extensions` schema; hosted Supabase does not put it on the
+-- migration role's search_path, so set it explicitly.
+set search_path = public, extensions;
+
 -- Runner core schema: profiles, social graph, clubs, notifications, privacy zones.
 -- Location-bearing tables live in 0002 (activities) and 0003 (territory).
 

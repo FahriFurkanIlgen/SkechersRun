@@ -1,5 +1,6 @@
 import Foundation
 import WatchConnectivity
+import WidgetKit
 
 /// Phone recording state mirrored from the iPhone (see modules/runner-watch).
 struct PhoneSession: Equatable {
@@ -51,6 +52,7 @@ final class PhoneLink: NSObject, ObservableObject {
   @Published private(set) var phone: PhoneSession?
   @Published private(set) var reachable = false
   @Published var commandError: String?
+  @Published private(set) var stats: SharedStats? = SharedStats.load()
 
   func activate() {
     guard WCSession.isSupported() else { return }
@@ -100,8 +102,16 @@ final class PhoneLink: NSObject, ObservableObject {
     if let units = dict["units"] as? String {
       UserDefaults.standard.set(units, forKey: "runner.units")
     }
+    if let haptics = dict["haptics"] as? Bool {
+      UserDefaults.standard.set(haptics, forKey: "runner.haptics")
+    }
     if let session = PhoneSession(dict) {
       phone = session
+    }
+    if let statsDict = dict["stats"] as? [String: Any], let newStats = SharedStats(statsDict), newStats != stats {
+      stats = newStats
+      SharedStats.save(statsDict)
+      WidgetCenter.shared.reloadAllTimelines()
     }
   }
 

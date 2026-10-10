@@ -99,6 +99,7 @@ export const REASON_LABEL: Record<string, string> = {
   overlapping_activity: 'Aynı zaman aralığında başka bir aktiviten zaten kayıtlı.',
   duplicate_trace: 'Bu rota daha önce yüklenmiş.',
   duplicate_import: 'Bu antrenman daha önce içe aktarılmış.',
+  synthetic_route: 'Rota gerçek bir GPS kaydı gibi görünmüyor (hız ve aralıklar tamamen sabit). Çizilmiş veya üretilmiş rotalar hücre kazandırmaz.',
   below_min_distance: 'Hücre kazanmak için en az 400 m gerekiyor.',
   claim_too_large: 'Tek aktivite sınırı (300 hücre) aşıldığı için hücre verilmedi.',
   loop: 'Döngü kapandı: geçtiğin hücreler + çevrelediğin hücreler.',

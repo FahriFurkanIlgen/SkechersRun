@@ -113,7 +113,7 @@ export async function listHealthWorkouts(): Promise<HealthWorkout[]> {
       OR: Object.keys(TYPE_FROM_HK).map((t) => ({ workoutActivityType: Number(t) as WorkoutActivityType })),
     },
   });
-  const imported = await activityRepo.externalIds('apple_health');
+  const imported = await activityRepo.externalIds('apple_health', 'runner_watch');
   return workouts
     .filter((w) => !writtenByPhoneApp(w))
     .map((w) => ({
@@ -156,12 +156,14 @@ export async function importHealthWorkout(uuid: string): Promise<string> {
 
   const id = Crypto.randomUUID();
   const startedAt = workout.startDate.getTime();
+  // Recorded by the Runner watch app (WorkoutManager.swift sets this key).
+  const fromRunnerWatch = workout.metadata?.RunnerRecordedOnWatch != null;
   await activityRepo.createImported({
     id,
     type,
-    source: 'apple_health',
+    source: fromRunnerWatch ? 'runner_watch' : 'apple_health',
     externalId: workout.uuid,
-    sourceDevice: deviceLabel(workout),
+    sourceDevice: fromRunnerWatch ? 'Apple Watch' : deviceLabel(workout),
     startedAt,
   });
   await activityRepo.appendPoints(id, points);

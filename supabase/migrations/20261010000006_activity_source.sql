@@ -1,3 +1,7 @@
+-- PostGIS lives in the `extensions` schema; hosted Supabase does not put it on the
+-- migration role's search_path, so set it explicitly.
+set search_path = public, extensions;
+
 -- Where an activity was recorded: the phone itself, or imported from a health
 -- platform (Apple Health — e.g. Apple Watch workouts — or Health Connect).
 -- Imported activities go through exactly the same validation as phone ones.

@@ -1,3 +1,7 @@
+-- PostGIS lives in the `extensions` schema; hosted Supabase does not put it on the
+-- migration role's search_path, so set it explicitly.
+set search_path = public, extensions;
+
 -- Activities, raw GPS points, territories and the authoritative claim logic.
 --
 -- Clients never write these tables directly: they call submit_activity(),

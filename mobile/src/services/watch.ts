@@ -1,11 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { AppState } from 'react-native';
-import { RunnerWatch, type PhoneSessionPayload, type WatchWorkout } from '../../modules/runner-watch';
+import { RunnerWatch, type PhoneSessionPayload, type WatchStats, type WatchWorkout } from '../../modules/runner-watch';
 import { activityRepo } from '../data/local/activityRepo';
+import { fetchProfileStats } from '../data/remote/profileApi';
+import { defaultWeeklyGoalKm, startOfWeek, weekDistanceM } from '../domain/goals';
 import { signalQuality } from '../domain/gpsFilter';
 import { estimateClaim } from '../domain/territory';
 import { requestRemoteFinish } from '../features/activity/remoteFinish';
+import { useAuth } from '../state/authStore';
 import { useRecording } from '../state/recordingStore';
 import { useSettings } from '../state/settingsStore';
 import { importHealthWorkout } from './health/appleHealth';
@@ -24,12 +27,13 @@ const PUSH_INTERVAL_MS = 3_000;
 const HEARTBEAT_MS = 15_000;
 
 let lastPushAt = 0;
+let stats: WatchStats | undefined;
 let pendingPush: ReturnType<typeof setTimeout> | null = null;
 
 function payload(): PhoneSessionPayload {
   const { session, distanceM, lastFix, points } = useRecording.getState();
-  const units = useSettings.getState().units;
-  if (!session) return { state: 'idle', units };
+  const { units, hapticFeedback: haptics } = useSettings.getState();
+  if (!session) return { state: 'idle', units, haptics, stats };
   return {
     state: session.status,
     type: session.type,
@@ -40,7 +44,31 @@ function payload(): PhoneSessionPayload {
     gps: session.status === 'paused' ? 'none' : signalQuality(lastFix?.accuracy ?? null, lastFix?.timestamp ?? null, Date.now()),
     estimatedCells: estimateClaim(points).cells,
     units,
+    haptics,
+    stats,
   };
+}
+
+/** Recomputes the weekly goal and cell count shown on the watch and its complication. */
+async function refreshStats(): Promise<void> {
+  if (!RunnerWatch) return;
+  try {
+    const activities = await activityRepo.listSaved();
+    const { weeklyGoalKm, level } = useSettings.getState();
+    const session = useAuth.getState().session;
+    const remote = session ? await fetchProfileStats(session.user.id).catch(() => null) : null;
+    const now = Date.now();
+    stats = {
+      weekDoneM: weekDistanceM(activities, now),
+      weekTargetM: (weeklyGoalKm ?? defaultWeeklyGoalKm(level)) * 1000,
+      weekStartMs: startOfWeek(now),
+      cells: remote ? remote.territoryCells : activities.reduce((s, a) => s + (a.claim?.netGainCells ?? 0), 0),
+      cellsOwned: remote != null,
+    };
+    pushNow();
+  } catch {
+    // Keep the previous stats; the watch shows what it has.
+  }
 }
 
 function pushNow() {
@@ -79,6 +107,11 @@ async function handleCommand(command: string) {
   pushNow();
 }
 
+/** Call after saving or deleting an activity so the watch shows the new totals. */
+export function refreshWatchStats(): void {
+  void refreshStats();
+}
+
 let importing = false;
 let askedToConnect = false;
 
@@ -98,7 +131,7 @@ export async function importWatchWorkouts(): Promise<void> {
       }
       return;
     }
-    const already = await activityRepo.externalIds('apple_health');
+    const already = await activityRepo.externalIds('apple_health', 'runner_watch');
     for (const w of pending) {
       if (already.has(w.workoutId)) {
         RunnerWatch.ackWorkout(w.workoutId);
@@ -107,6 +140,7 @@ export async function importWatchWorkouts(): Promise<void> {
       try {
         const id = await importHealthWorkout(w.workoutId);
         RunnerWatch.ackWorkout(w.workoutId);
+        void refreshStats();
         await announce(w, id);
       } catch (e) {
         // Not synced from the watch yet: keep it and retry on the next foreground.
@@ -144,6 +178,7 @@ export function startWatchLink(): () => void {
   let prev = useRecording.getState();
   const unsubscribe = useRecording.subscribe((s) => {
     const statusChanged = s.status !== prev.status || s.session?.status !== prev.session?.status;
+    if (statusChanged && s.status === 'idle') void refreshStats();
     if (statusChanged || s.distanceM !== prev.distanceM || s.lastFix !== prev.lastFix) schedulePush(statusChanged);
     prev = s;
   });
@@ -154,15 +189,20 @@ export function startWatchLink(): () => void {
   const workouts = RunnerWatch.addListener('onWatchWorkout', () => void importWatchWorkouts());
   const appState = AppState.addEventListener('change', (state) => {
     if (state === 'active') {
-      pushNow();
+      void refreshStats();
       void importWatchWorkouts();
     }
   });
+  const goal = useSettings.subscribe((s, p) => {
+    if (s.weeklyGoalKm !== p.weeklyGoalKm || s.level !== p.level) void refreshStats();
+  });
 
   pushNow();
+  void refreshStats();
   void importWatchWorkouts();
 
   return () => {
+    goal();
     unsubscribe();
     clearInterval(heartbeat);
     commands.remove();

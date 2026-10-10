@@ -9,6 +9,7 @@ import { weeklyGoals, startOfWeek } from '../goals';
 import { RULES } from '../rules';
 import { normalizeUsername } from '../username';
 import { routeFromExternalLocations } from '../importRoute';
+import { trackingErrorMessage } from '../trackingError';
 import type { Activity } from '../types';
 import { routeFromOffsets, square } from './testRoutes';
 
@@ -225,5 +226,13 @@ describe('imported routes', () => {
     expect(pts).toHaveLength(base.length - 1);
     expect(new Set(pts.map((p) => p.segment))).toEqual(new Set([0, 1]));
     expect(pts.every((p, i) => p.seq === i)).toBe(true);
+  });
+});
+
+describe('tracking errors', () => {
+  it('hides transient iOS "location unknown" and rewrites the rest', () => {
+    expect(trackingErrorMessage('The operation couldn’t be completed. Error Domain=kCLErrorDomain Code=0 "(null)"')).toBeNull();
+    expect(trackingErrorMessage('Error Domain=kCLErrorDomain Code=1 "(null)"')).toMatch(/Konum izni kapatıldı/);
+    expect(trackingErrorMessage('Error Domain=kCLErrorDomain Code=10 "(null)"')).toMatch(/Konum alınamıyor/);
   });
 });

@@ -1,6 +1,7 @@
 import CoreLocation
 import Foundation
 import HealthKit
+import WatchKit
 
 /// Phone-free recording on the watch: an HKWorkoutSession keeps the app running
 /// with the screen off, CoreLocation provides the route (filtered with the
@@ -44,6 +45,8 @@ final class WorkoutManager: NSObject, ObservableObject {
   private var routePoints = 0
   private var gpsTimer: Timer?
   private var startedAt = Date.distantPast
+  /// Completed kilometres (or miles) already announced with a haptic.
+  private var splitsAnnounced = 0
 
   override init() {
     super.init()
@@ -72,6 +75,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     lastAccepted = nil
     lastFix = nil
     routePoints = 0
+    splitsAnnounced = 0
     do {
       try await requestAuthorization(for: kind)
       locationManager.requestWhenInUseAuthorization()
@@ -236,10 +240,23 @@ final class WorkoutManager: NSObject, ObservableObject {
       accepted.append(fix)
     }
     cells = estimator.cells
+    announceSplitIfNeeded()
     refreshGps()
     guard !accepted.isEmpty, let routeBuilder else { return }
     routePoints += accepted.count
     routeBuilder.insertRouteData(accepted) { _, _ in }
+  }
+
+  /// A haptic tap at every full kilometre (mile), like the phone's split feedback.
+  private func announceSplitIfNeeded() {
+    let unitM = Format.units == .imperial ? 1609.344 : 1000
+    let splits = Int(distanceM / unitM)
+    guard splits > splitsAnnounced else { return }
+    splitsAnnounced = splits
+    // Follows the phone's "Titreşimli geri bildirim" setting (on by default).
+    if UserDefaults.standard.object(forKey: "runner.haptics") as? Bool ?? true {
+      WKInterfaceDevice.current().play(.notification)
+    }
   }
 
   fileprivate func sessionChanged(to state: HKWorkoutSessionState) {

@@ -14,6 +14,20 @@ export interface PhoneSessionPayload {
   gps?: string;
   estimatedCells?: number;
   units?: 'metric' | 'imperial';
+  /** Phone's "haptic feedback" setting; the watch taps at every km when on. */
+  haptics?: boolean;
+  /** Weekly goal and cells for the watch start screen and complication (SharedStats.swift). */
+  stats?: WatchStats;
+}
+
+export interface WatchStats {
+  weekDoneM: number;
+  weekTargetM: number;
+  /** Monday 00:00 local of the week weekDoneM belongs to, epoch ms. */
+  weekStartMs: number;
+  cells: number;
+  /** true = currently owned (server); false = gained so far (device only). */
+  cellsOwned: boolean;
 }
 
 /** A workout the watch recorded on its own and saved to Apple Health. */

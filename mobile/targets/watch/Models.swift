@@ -94,6 +94,13 @@ enum Format {
     units == .imperial ? (decimal(m / 1609.344, 2), "mi") : (decimal(m / 1000, 2), "km")
   }
 
+  /// Goal distance without trailing decimals: "10 km", "12,5 km".
+  static func goal(_ m: Double, units: Units = Format.units) -> String {
+    let v = units == .imperial ? m / 1609.344 : m / 1000
+    let text = v.rounded() == v ? String(Int(v)) : decimal(v, 1)
+    return "\(text) \(units == .imperial ? "mi" : "km")"
+  }
+
   static func duration(_ s: TimeInterval) -> String {
     let total = max(0, Int(s))
     let h = total / 3600

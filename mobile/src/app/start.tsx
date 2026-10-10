@@ -7,6 +7,7 @@ import { Banner, Button, IconButton, Segmented, Txt } from '../components/ui';
 import { RULES } from '../domain/rules';
 import type { ActivityType, Visibility } from '../domain/types';
 import { useGpsProbe } from '../features/activity/useGpsProbe';
+import { getBatteryAdvice, openBatterySettings, type BatteryAdvice } from '../services/batteryGuidance';
 import {
   getLocationAccess,
   openAppSettings,
@@ -38,6 +39,7 @@ export default function PreActivity() {
   const [type, setType] = useState<ActivityType>(preferred);
   const [visibility, setVisibility] = useState<Visibility>(defaultVisibility);
   const [access, setAccess] = useState<LocationAccess | null>(null);
+  const [battery, setBattery] = useState<BatteryAdvice | null>(null);
   const rec = useRecording();
   const hasLocation = access === 'foreground' || access === 'background';
   const gps = useGpsProbe(hasLocation);
@@ -47,6 +49,7 @@ export default function PreActivity() {
   useFocusEffect(
     useCallback(() => {
       void getLocationAccess().then(setAccess);
+      void getBatteryAdvice().then(setBattery);
     }, []),
   );
 
@@ -158,6 +161,11 @@ export default function PreActivity() {
                 action={{ label: 'Her zaman izni ver', onPress: async () => setAccess(await requestBackgroundLocation()) }}
               >
                 Android’de ekran kilitliyken kaydın kesilmemesi için “Her zaman izin ver” seçeneği gerekir.
+              </Banner>
+            ) : null}
+            {battery ? (
+              <Banner tone="info" title="Pil optimizasyonu açık" action={{ label: 'Pil ayarlarını aç', onPress: () => void openBatterySettings() }}>
+                {`Uzun aktivitelerde telefon Runner’ı durdurabilir. Listede Runner’ı “Optimize etme” olarak işaretle.${battery.vendorSteps ? `\n\nBu telefonda ayrıca: ${battery.vendorSteps}` : ''}`}
               </Banner>
             ) : null}
           </View>

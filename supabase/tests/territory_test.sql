@@ -4,18 +4,20 @@
 create schema test;
 
 -- Builds a points payload walking through (east, north) metre offsets from an
--- origin at a constant speed, one fix every `step_m` metres.
+-- origin at about `speed`, one fix every `step_m` metres. Real GPS speed varies;
+-- `jitter` (±fraction, deterministic) mimics that. jitter = 0 gives the perfectly
+-- constant speed of a generated track (rejected as synthetic_route).
 create function test.route(
   lat0 double precision, lng0 double precision, offsets double precision[][],
   speed double precision, t0 timestamptz, step_m double precision default 10,
-  mocked boolean default false)
+  mocked boolean default false, jitter double precision default 0.15)
 returns jsonb language plpgsql as $$
 declare
   pts jsonb := '[]';
   m_lat constant double precision := 111195;
   m_lng double precision := 111195 * cos(radians(lat0));
   t double precision := extract(epoch from t0) * 1000;
-  i int; s int; steps int; len double precision;
+  i int; s int; steps int; len double precision; k int := 0;
   x0 double precision; y0 double precision; x1 double precision; y1 double precision;
 begin
   pts := pts || jsonb_build_array(jsonb_build_array(lat0 + offsets[1][2] / m_lat, lng0 + offsets[1][1] / m_lng, 5, t, 0, speed, null, mocked));
@@ -24,7 +26,8 @@ begin
     len := sqrt((x1-x0)^2 + (y1-y0)^2);
     steps := greatest(1, round(len / step_m)::int);
     for s in 1 .. steps loop
-      t := t + (len / steps) / speed * 1000;
+      k := k + 1;
+      t := t + (len / steps) / (speed * (1 + jitter * sin(k * 1.7))) * 1000;
       pts := pts || jsonb_build_array(jsonb_build_array(
         lat0 + (y0 + (y1-y0) * s / steps) / m_lat,
         lng0 + (x0 + (x1-x0) * s / steps) / m_lng, 5, t, 0, speed, null, mocked));
@@ -138,7 +141,7 @@ select test.assert((select res ->> 'status' = 'accepted' and res -> 'reasons' ? 
 -- Open route: corridor only (1 km * 30 m ~ 30k m2).
 insert into r select 'a_corridor', public.submit_activity(test.payload(
   '10000000-0000-0000-0000-000000000009', 'run',
-  test.route(41.07, 29.07, '{{0,0},{1000,0}}', 3, now() - interval '30 hours')));
+  test.route(41.07, 29.07, '{{0,0},{1000,0}}', 3, date_trunc('hour', now()) - interval '30 hours')));
 -- 1 km straight run through cells ~147 m apart (centre to centre along the row).
 select test.assert((select (res ->> 'claimed_cells')::int between 5 and 12 and res -> 'reasons' ? 'corridor'
   from r where name = 'a_corridor'), 'open route claims the cells it runs through, got ' || (select res ->> 'claimed_cells' from r where name = 'a_corridor'));
@@ -170,8 +173,8 @@ select test.assert((select res ->> 'status' = 'accepted' and (res ->> 'captured_
 -- Duplicate trace from another user.
 insert into r select 'b_dup', public.submit_activity(test.payload(
   '20000000-0000-0000-0000-000000000002', 'walk',
-  test.route(41.07, 29.07, '{{0,0},{1000,0}}', 3, now() - interval '30 hours')));
-select test.assert((select res -> 'reasons' ? 'duplicate_trace' from r where name = 'b_dup'), 'copied trace rejected');
+  test.route(41.07, 29.07, '{{0,0},{1000,0}}', 3, date_trunc('hour', now()) - interval '30 hours')));
+select test.assert((select res -> 'reasons' ? 'duplicate_trace' from r where name = 'b_dup'), 'copied trace rejected: ' || (select res::text from r where name = 'b_dup'));
 
 -- A sees B anonymised (B's profile is private) and B's territory.
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
@@ -286,4 +289,22 @@ select test.assert((select public.submit_activity(test.payload(
   '20000000-0000-0000-0000-000000000098', 'run',
   test.route(41.6, 29.6, '{{0,0},{900,0}}', 3, now() - interval '3 days'))
   || '{"source":"apple_health","external_id":"HK-1"}') -> 'reasons' ? 'duplicate_import'), 'same external workout cannot be imported twice');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 0007: Runner watch source and synthetic route detection.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select public.submit_activity(test.payload(
+  '20000000-0000-0000-0000-000000000097', 'run',
+  test.route(41.7, 29.7, '{{0,0},{900,0},{900,600}}', 3, now() - interval '4 days', jitter => 0))
+  || '{"source":"health_connect","external_id":"HC-9"}') -> 'reasons' ? 'synthetic_route'),
+  'constant-speed generated track is rejected as synthetic');
+insert into r select 'b_watch', public.submit_activity(test.payload(
+  '20000000-0000-0000-0000-000000000096', 'run',
+  test.route(41.8, 29.8, '{{0,0},{900,0}}', 3, now() - interval '5 days'))
+  || '{"source":"runner_watch","external_id":"HK-W1","source_device":"Apple Watch"}');
+select test.assert((select a.source = 'runner_watch' and a.status = 'accepted'
+  from public.activities a where a.id = (select (res ->> 'activity_id')::uuid from r where name = 'b_watch')),
+  'workout recorded by the Runner watch app is accepted with its source');
 reset role;

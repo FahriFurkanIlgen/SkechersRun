@@ -129,11 +129,11 @@ export const activityRepo = {
     );
   },
 
-  async externalIds(source: ActivitySource): Promise<Set<string>> {
+  async externalIds(...sources: ActivitySource[]): Promise<Set<string>> {
     const db = await getDb();
     const rows = await db.getAllAsync<{ external_id: string }>(
-      `SELECT external_id FROM activities WHERE source = ? AND external_id IS NOT NULL`,
-      source,
+      `SELECT external_id FROM activities WHERE source IN (${sources.map(() => '?').join(', ')}) AND external_id IS NOT NULL`,
+      ...sources,
     );
     return new Set(rows.map((r) => r.external_id));
   },

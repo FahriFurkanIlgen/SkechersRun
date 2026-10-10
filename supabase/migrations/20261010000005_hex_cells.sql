@@ -1,3 +1,7 @@
+-- PostGIS lives in the `extensions` schema; hosted Supabase does not put it on the
+-- migration role's search_path, so set it explicitly.
+set search_path = public, extensions;
+
 -- Hexagon cell model (design: "Harita katmanı" — mine / others / empty cells).
 --
 -- The map is divided into a fixed grid of flat-topped hexagons in Web Mercator

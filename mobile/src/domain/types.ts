@@ -15,7 +15,8 @@ export type UnitSystem = 'metric' | 'imperial';
 export type RouteShare = 'trimmed' | 'stats_only' | 'full';
 
 /** Where an activity was recorded. */
-export type ActivitySource = 'phone' | 'apple_health' | 'health_connect';
+/** runner_watch = recorded by the Runner Apple Watch app (delivered via Apple Health). */
+export type ActivitySource = 'phone' | 'apple_health' | 'health_connect' | 'runner_watch';
 
 export interface User {
   id: string;

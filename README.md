@@ -72,6 +72,9 @@ ile saat arasındaki köprü `mobile/modules/runner-watch/` yerel Expo modülüd
 - **Telefonda kayıt sürerken**: saat telefondaki kaydı canlı gösterir (süre, mesafe, tempo, GPS, tahmini hücre) ve
   duraklat / devam / bitir komutlarını telefona iletir.
 - Saatteki hücre sayısı yalnızca rota hücrelerinin tahminidir; kesin sonucu (kapalı döngü içi dahil) sunucu hesaplar.
+- **Komplikasyon** (`mobile/targets/watch-widget/`, WidgetKit): haftalık hedef halkası ve hücre sayısı. Veriyi telefon
+  gönderir; saat uygulaması App Group'a (`group.<bundle id>`) yazar, komplikasyon oradan okur.
+- Her km'de saatte titreşim (telefondaki "Titreşimli geri bildirim" ayarını izler).
 
 Saat hedefinin paket kimliği iOS uygulamasınınkinin sonuna `.watchkitapp` eklenerek üretilir. Cihaza kurulumda paket
 kimliğini `xcodebuild` parametresiyle ezmek yerine `APP_BUNDLE_ID` ve `APPLE_TEAM_ID` ile `npx expo prebuild --clean`
@@ -139,10 +142,12 @@ kulüpler, veri ve hesap silme).
 | Bildirimler | Uygulama içi kutu, yerel hatırlatmalar, push (Edge Function + webhook; EAS proje kimliği ve kurulum gerekir, uçtan uca doğrulanmadı) |
 | Ayarlar: görünürlük, gizli bölgeler, sıralamada görünme, birim, tema, bildirimler, iş ortaklığı içeriği, verilerimi indir (JSON), konum geçmişi/hesap silme | Çalışıyor |
 | Apple Sağlık: Apple Watch / diğer uygulama antrenmanlarını rotasıyla içe aktarma, aktiviteleri Sağlık'a yazma | Uygulandı; gerçek Apple Watch verisiyle cihazda test edilmesi gerekiyor |
-| Apple Watch uygulaması: saatte telefonsuz kayıt (Sağlık'a rotasıyla yazılır, telefon otomatik içe aktarır), telefondaki kaydı yansıtma ve saatten duraklat/devam/bitir | Uygulandı; watchOS simülatöründe kayıt akışı doğrulandı, gerçek saatte koşuyla test edilmedi |
+| Apple Watch uygulaması: saatte telefonsuz kayıt (Sağlık'a rotasıyla yazılır, telefon otomatik içe aktarır), telefondaki kaydı yansıtma ve saatten duraklat/devam/bitir, km titreşimi, komplikasyon | Uygulandı; eşli iPhone + Watch simülatörlerinde yansıtma, komutlar ve haftalık istatistik doğrulandı. Saatte kaydedilen antrenmanın telefona aktarılması ve komplikasyonun görünümü gerçek cihazda test edilmedi |
 | Health Connect (Android): Wear OS / Galaxy Watch / Garmin (telefon uygulaması üzerinden) antrenmanlarını rotasıyla içe aktarma, aktiviteleri Health Connect'e yazma | Uygulandı; Android 14 emülatöründe izin akışı doğrulandı, gerçek saat verisiyle test edilmedi. Google Play'de yayın için Health Connect izin beyanı (Play Console) gerekir |
 | İlçe/şehir adıyla sıralama (tasarımdaki "Kadıköy / İstanbul") | Yarıçap tabanlı (5 / 25 km) olarak uygulandı; ad için ters geocoding servisi gerekir |
 | Sıralama değişim okları (↑2) | Yok — geçmiş sıralama anlık görüntüleri gerekiyor |
+
+Gerçek cihaz test protokolü: [docs/device-testing.md](docs/device-testing.md).
 
 ## Sonraki adımlar
 

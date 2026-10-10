@@ -1,3 +1,7 @@
+-- PostGIS lives in the `extensions` schema; hosted Supabase does not put it on the
+-- migration role's search_path, so set it explicitly.
+set search_path = public, extensions;
+
 -- Social RPCs, leaderboards, account/data deletion, and row level security.
 
 -- ---------------------------------------------------------------------------

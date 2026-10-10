@@ -30,6 +30,10 @@ struct StartView: View {
             .font(.footnote)
             .foregroundStyle(.red)
         }
+        if let stats = phone.stats {
+          WeekStatsView(stats: stats)
+            .padding(.top, 4)
+        }
         Text(phone.reachable
           ? "Saatin GPS'iyle kaydeder. Telefonda kayıt başlatırsan saat onu gösterir."
           : "Telefon gerekmez: saatin GPS'iyle kaydeder, bitince Sağlık'a ve telefondaki Runner'a aktarılır.")
@@ -39,6 +43,24 @@ struct StartView: View {
       }
     }
     .navigationTitle("Runner")
+  }
+}
+
+struct WeekStatsView: View {
+  let stats: SharedStats
+
+  var body: some View {
+    let done = Format.distance(stats.doneThisWeek())
+    let target = Format.goal(stats.weekTargetM)
+    VStack(alignment: .leading, spacing: 4) {
+      Text("Bu hafta \(done.value) / \(target)")
+        .font(.footnote)
+      ProgressView(value: stats.ratio())
+        .tint(.accentColor)
+      Label("\(stats.cells) hücre\(stats.cellsOwned ? "" : " kazanıldı")", systemImage: "hexagon.fill")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
   }
 }
 

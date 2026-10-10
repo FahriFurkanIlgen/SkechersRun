@@ -120,6 +120,7 @@ export default function RootLayout() {
           />
           <Stack.Screen name="activity/[id]" options={{ title: 'Aktivite' }} />
           <Stack.Screen name="auth" options={{ title: 'Giriş yap', presentation: 'modal' }} />
+          <Stack.Screen name="auth-callback" options={{ title: 'Giriş' }} />
           <Stack.Screen name="settings/index" options={{ headerShown: false }} />
           <Stack.Screen name="settings/privacy-zones" options={{ title: 'Gizli bölgeler' }} />
           <Stack.Screen name="inbox" options={{ title: 'Bildirimler' }} />

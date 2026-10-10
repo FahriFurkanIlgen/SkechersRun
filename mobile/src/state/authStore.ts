@@ -37,7 +37,8 @@ export const useAuth = create<AuthState>((set) => ({
     const { data, error } = await requireSupabase().auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      // The confirmation e-mail links back into the app (src/app/auth-callback.tsx).
+      options: { data: { username }, emailRedirectTo: Linking.createURL('auth-callback') },
     });
     if (error) throw new Error(error.message);
     return { needsConfirmation: !data.session };

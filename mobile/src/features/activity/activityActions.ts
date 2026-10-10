@@ -3,6 +3,7 @@ import { deleteRemoteActivity, updateRemoteActivity } from '../../data/remote/ac
 import type { RouteShare, Visibility } from '../../domain/types';
 import { health } from '../../services/health';
 import { canSync, syncPending } from '../../services/syncService';
+import { refreshWatchStats } from '../../services/watch';
 import { useSettings } from '../../state/settingsStore';
 
 /** Use-case functions for activities; screens call these instead of repositories. */
@@ -16,6 +17,7 @@ export const activityActions = {
     });
     // Fire and forget: failures stay in the outbox and are retried later.
     void syncPending();
+    refreshWatchStats();
     const { healthConnected, healthExport } = useSettings.getState();
     if (health && healthConnected && healthExport) {
       void (async () => {
@@ -40,5 +42,6 @@ export const activityActions = {
     const a = await activityRepo.get(id);
     if (a?.remoteId) await deleteRemoteActivity(a.remoteId);
     await activityRepo.delete(id);
+    refreshWatchStats();
   },
 };
