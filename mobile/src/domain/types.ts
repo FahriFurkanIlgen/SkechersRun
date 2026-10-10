@@ -14,6 +14,9 @@ export type UnitSystem = 'metric' | 'imperial';
 /** How a shared activity's route is shown to others (privacy zones always apply). */
 export type RouteShare = 'trimmed' | 'stats_only' | 'full';
 
+/** Where an activity was recorded. */
+export type ActivitySource = 'phone' | 'apple_health' | 'health_connect';
+
 export interface User {
   id: string;
   username: string;
@@ -72,6 +75,11 @@ export interface Activity {
   title: string;
   visibility: Visibility;
   routeShare: RouteShare;
+  source: ActivitySource;
+  /** Workout identifier in the source platform (e.g. HealthKit UUID). */
+  externalId: string | null;
+  /** Recording device for imports, e.g. "Apple Watch". */
+  sourceDevice: string | null;
   startedAt: number;
   endedAt: number;
   /** Time spent moving (excludes pauses), seconds. */

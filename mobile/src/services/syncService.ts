@@ -28,7 +28,7 @@ async function run(): Promise<number> {
       const points = await activityRepo.getPoints(activity.id);
       const { remoteId, claim } = await submitActivity(activity, points);
       await activityRepo.markSynced(activity.id, remoteId, claim);
-      await notifyActivityProcessed(claim, useSettings.getState().notificationPrefs).catch(() => undefined);
+      await notifyActivityProcessed(claim, useSettings.getState().notificationPrefs, activity.id).catch(() => undefined);
       uploaded++;
     } catch (e) {
       await activityRepo.markSyncError(activity.id, e instanceof Error ? e.message : String(e));

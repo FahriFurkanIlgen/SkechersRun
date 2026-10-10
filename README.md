@@ -41,6 +41,8 @@ npx expo run:ios             # veya: npx expo run:android
 | `EXPO_PUBLIC_OAUTH_PROVIDERS` | `apple,google` — yalnızca Supabase'de etkinleştirilmiş sağlayıcılar. |
 | `GOOGLE_MAPS_ANDROID_API_KEY` | Android'de harita için zorunlu (iOS Apple Haritalar kullanır). |
 | `APP_BUNDLE_ID` | Varsayılan `app.runner.mobile`. |
+| `APPLE_TEAM_ID` | Gerçek iPhone'a kurulum için Apple Developer ekip kimliği. |
+| `EAS_PROJECT_ID` | Push bildirimleri için Expo/EAS proje kimliği (`npx eas-cli init`). Yoksa push kapalıdır. |
 
 Kontroller:
 
@@ -70,6 +72,21 @@ Bu komut ~1 km'lik bir döngüyü 3 m/s hızla yürütür. Durdurmak için: `xcr
 3. **Auth → URL Configuration**: `runner://auth-callback` adresini Redirect URL'lere ekle.
 4. Apple/Google girişi için Auth → Providers altında sağlayıcıları yapılandır ve `EXPO_PUBLIC_OAUTH_PROVIDERS`'a ekle.
 5. İsteğe bağlı: ham GPS noktalarını 30 gün sonra silmek için `pg_cron` ile `select public.purge_old_route_points(30);` zamanla.
+
+### Push bildirimleri
+
+1. `cd mobile && npx eas-cli init` ile proje kimliğini al, `.env.local`'a `EAS_PROJECT_ID` olarak yaz ve uygulamayı yeniden derle.
+   iOS için Apple Push anahtarı EAS'e yüklenmeli (`npx eas-cli credentials`).
+2. Edge Function'ı yayınla ve gizli anahtarı tanımla:
+   ```bash
+   npx supabase functions deploy send-push --no-verify-jwt
+   npx supabase secrets set PUSH_WEBHOOK_SECRET=<rastgele-uzun-değer>
+   ```
+3. Supabase → Database → Webhooks: `public.notifications` tablosunda **INSERT** için `send-push` fonksiyonuna
+   `x-webhook-secret: <aynı değer>` başlığıyla bir webhook ekle.
+
+Uygulama, giriş yapıldığında ve bildirim tercihleri değiştiğinde cihaz token'ını `notification_prefs.push_token`'a yazar;
+bildirime dokununca ilgili ekran açılır. Mesaj metinlerinin testleri: `node --test supabase/functions/send-push/messages.test.ts`.
 
 ### SQL testleri
 
@@ -102,9 +119,10 @@ kulüpler, veri ve hesap silme).
 | Profil, istatistikler, rekorlar, geçmiş, detay, düzenle/sil | Çalışıyor |
 | Akış, beğeni, takip/takipçi, kulüp oluştur/katıl | Çalışıyor (Supabase gerekir) |
 | Sıralamalar: yakın (5 km) / şehir (25 km) / genel, arkadaşlar filtresi, benzer seviye, haftalık alan/toplam alan/tutarlılık | Çalışıyor (Supabase gerekir) |
-| Bildirimler | Uygulama içi kutu, yerel hatırlatmalar (günlük hareket, haftalık özet) ve aktivite sonrası yerel bildirim; **sunucudan push gönderimi yok** |
+| Bildirimler | Uygulama içi kutu, yerel hatırlatmalar, push (Edge Function + webhook; EAS proje kimliği ve kurulum gerekir, uçtan uca doğrulanmadı) |
 | Ayarlar: görünürlük, gizli bölgeler, sıralamada görünme, birim, tema, bildirimler, iş ortaklığı içeriği, verilerimi indir (JSON), konum geçmişi/hesap silme | Çalışıyor |
-| Sağlık verisi (HealthKit / Health Connect) | Yok — arayüzde açıkça belirtiliyor |
+| Apple Sağlık: Apple Watch / diğer uygulama antrenmanlarını rotasıyla içe aktarma, aktiviteleri Sağlık'a yazma | Uygulandı; gerçek Apple Watch verisiyle cihazda test edilmesi gerekiyor |
+| Health Connect (Android) | Yok — sonraki adım |
 | İlçe/şehir adıyla sıralama (tasarımdaki "Kadıköy / İstanbul") | Yarıçap tabanlı (5 / 25 km) olarak uygulandı; ad için ters geocoding servisi gerekir |
 | Sıralama değişim okları (↑2) | Yok — geçmiş sıralama anlık görüntüleri gerekiyor |
 
@@ -112,7 +130,7 @@ kulüpler, veri ve hesap silme).
 
 Ayrıntılı ve önceliklendirilmiş liste: [docs/backlog.md](docs/backlog.md). Öne çıkanlar:
 
-1. Akıllı saat entegrasyonu (Apple Watch, Wear OS, Garmin/Polar/Coros içe aktarma) ve HealthKit / Health Connect.
-2. Push bildirimleri (Edge Function).
+1. Yerel saat uygulamaları (watchOS, Wear OS) — açık ürün soruları backlog'da.
+2. Health Connect (Android) ile içe aktarma.
 3. Gerçek cihazda uzun aktivite pil ve veri kaybı testleri.
 4. Onaylı marka kılavuzuyla renk/yazı tipi/ikon güncellemesi.

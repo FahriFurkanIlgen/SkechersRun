@@ -269,3 +269,21 @@ select test.assert((select count(*) = 0 from public.leaderboard('global', 'area'
 select test.assert((select bool_and(r2.is_me) from public.leaderboard('global', 'area', null, null, null, 10, 50, 'friends') r2),
   'friends filter with no friends shows only me');
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- Activity source (0006): imports from health platforms.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+insert into r select 'b_import', public.submit_activity(test.payload(
+  '20000000-0000-0000-0000-000000000099', 'run',
+  test.route(41.5, 29.5, '{{0,0},{900,0}}', 3, now() - interval '2 days'))
+  || '{"source":"apple_health","external_id":"HK-1","source_device":"Apple Watch"}');
+select test.assert((select a.source = 'apple_health' and a.external_id = 'HK-1' and a.source_device = 'Apple Watch'
+  and a.status = 'accepted' and a.claimed_cells > 0
+  from public.activities a where a.id = (select (res ->> 'activity_id')::uuid from r where name = 'b_import')),
+  'imported workout is stored with its source and claims cells');
+select test.assert((select public.submit_activity(test.payload(
+  '20000000-0000-0000-0000-000000000098', 'run',
+  test.route(41.6, 29.6, '{{0,0},{900,0}}', 3, now() - interval '3 days'))
+  || '{"source":"apple_health","external_id":"HK-1"}') -> 'reasons' ? 'duplicate_import'), 'same external workout cannot be imported twice');
+reset role;

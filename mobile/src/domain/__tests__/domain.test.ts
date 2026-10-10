@@ -8,6 +8,7 @@ import { removePointsInZones, suggestPrivacyZones, trimRouteEnds } from '../priv
 import { weeklyGoals, startOfWeek } from '../goals';
 import { RULES } from '../rules';
 import { normalizeUsername } from '../username';
+import { routeFromExternalLocations } from '../importRoute';
 import type { Activity } from '../types';
 import { routeFromOffsets, square } from './testRoutes';
 
@@ -180,7 +181,7 @@ describe('privacy', () => {
 describe('weekly goals', () => {
   const now = new Date(2026, 9, 9, 12).getTime(); // Friday
   const mk = (ts: number, distanceM: number): Activity => ({
-    id: String(ts), remoteId: null, type: 'walk', title: '', visibility: 'private', routeShare: 'trimmed', best5kS: null, best10kS: null,
+    id: String(ts), remoteId: null, type: 'walk', title: '', visibility: 'private', routeShare: 'trimmed', source: 'phone', externalId: null, sourceDevice: null, best5kS: null, best10kS: null,
     startedAt: ts, endedAt: ts + 1, movingTimeS: 600, distanceM, estimatedCells: 0,
     syncState: 'local_only', claim: null, lastSyncError: null,
   });
@@ -199,5 +200,24 @@ describe('username normalisation', () => {
     expect(normalizeUsername('Şükrü Öztürk?')).toBe('sukru_ozturk');
     expect(normalizeUsername('deneme?koşucu')).toBe('denemekosucu');
     expect(normalizeUsername('Ko\u0073\u0327ucu IŞIK')).toBe('kosucu_isik');
+  });
+});
+
+describe('imported routes', () => {
+  it('filters inaccurate fixes and keeps segments apart', () => {
+    const base = routeFromOffsets([[0, 0], [600, 0]], 3);
+    const locs = base.map((p, i) => ({
+      latitude: p.latitude,
+      longitude: p.longitude,
+      horizontalAccuracy: i === 5 ? 80 : 5,
+      timestamp: p.timestamp,
+      speed: 3,
+      altitude: null,
+      segment: i < 30 ? 0 : 1,
+    }));
+    const pts = routeFromExternalLocations(locs, 'run');
+    expect(pts).toHaveLength(base.length - 1);
+    expect(new Set(pts.map((p) => p.segment))).toEqual(new Set([0, 1]));
+    expect(pts.every((p, i) => p.seq === i)).toBe(true);
   });
 });

@@ -76,7 +76,7 @@ export default function Summary() {
   const syncFailed = saved && activity.syncState === 'pending_upload' && !!activity.lastSyncError;
   const weekDone = goal.doneM + (saved ? 0 : activity.distanceM);
   const date = new Date(activity.startedAt);
-  const dateText = `${date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} · ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · ${ACTIVITY_LABEL[activity.type]}`;
+  const dateText = `${date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} · ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · ${ACTIVITY_LABEL[activity.type]}${activity.source !== 'phone' ? ` · ${activity.sourceDevice ?? 'Apple Sağlık'}` : ''}`;
 
   const save = async () => {
     setBusy(true);

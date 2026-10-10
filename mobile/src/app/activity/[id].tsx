@@ -80,6 +80,7 @@ export default function ActivityDetail() {
         <Txt variant="title" style={{ fontSize: 26 }}>{activity.title || ACTIVITY_LABEL[activity.type]}</Txt>
         <Txt variant="bodySm" muted>
           {ACTIVITY_LABEL[activity.type]} · {new Date(activity.startedAt).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}
+          {activity.source !== 'phone' ? ` · ${activity.sourceDevice ?? 'Apple Sağlık'} ile kaydedildi` : ''}
         </Txt>
       </View>
       {points.length > 1 ? (

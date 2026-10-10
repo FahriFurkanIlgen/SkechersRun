@@ -16,6 +16,7 @@ import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getDb } from '../data/local/db';
 import { AnimatedSplash } from '../features/splash/AnimatedSplash';
+import { handleNotificationTaps, syncPushToken } from '../services/push';
 import { syncLocalReminders } from '../services/reminders';
 import { syncPending } from '../services/syncService';
 import { useAuth } from '../state/authStore';
@@ -55,6 +56,17 @@ export default function RootLayout() {
   useEffect(() => {
     void syncLocalReminders(notificationPrefs).catch(() => undefined);
   }, [notificationPrefs]);
+
+  // Keep the backend's push token in sync with sign-in state and preferences.
+  useEffect(() => {
+    if (session) void syncPushToken().catch(() => undefined);
+  }, [session, notificationPrefs]);
+
+  // Tapping a notification opens the related screen (once the navigator exists).
+  useEffect(() => {
+    if (!ready) return;
+    return handleNotificationTaps();
+  }, [ready]);
 
   // Flush the upload outbox when signed in, when coming online and on foreground.
   useEffect(() => {
@@ -106,6 +118,7 @@ export default function RootLayout() {
           <Stack.Screen name="people" options={{ title: 'Arkadaş bul' }} />
           <Stack.Screen name="clubs" options={{ title: 'Kulüpler' }} />
           <Stack.Screen name="how-it-works" options={{ title: 'Oyun kuralları' }} />
+          <Stack.Screen name="import-health" options={{ title: 'Apple Sağlık’tan aktar' }} />
         </Stack>
       ) : (
         <View style={{ flex: 1, backgroundColor: colors.bg }} />

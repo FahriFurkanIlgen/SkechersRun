@@ -32,6 +32,10 @@ interface SettingsState {
   hapticFeedback: boolean;
   /** Partner (sponsored) content. Off unless the user opts in. */
   partnerContent: boolean;
+  /** User granted Apple Health access from Runner. */
+  appleHealthConnected: boolean;
+  /** Write saved Runner activities to Apple Health. */
+  appleHealthExport: boolean;
   notificationPrefs: NotificationPrefs;
   set: (patch: Partial<Omit<SettingsState, 'set' | 'reset'>>) => void;
   reset: () => void;
@@ -54,6 +58,8 @@ const defaults = {
   voiceFeedback: false,
   hapticFeedback: true,
   partnerContent: false,
+  appleHealthConnected: false,
+  appleHealthExport: false,
   notificationPrefs: {
     enabled: true,
     movementReminders: true,

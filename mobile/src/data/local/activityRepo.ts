@@ -1,5 +1,6 @@
 import type {
   Activity,
+  ActivitySource,
   ActivitySyncState,
   ActivityType,
   ClaimResult,
@@ -16,6 +17,9 @@ interface ActivityRow {
   title: string;
   visibility: Visibility;
   route_share: RouteShare;
+  source: ActivitySource;
+  external_id: string | null;
+  source_device: string | null;
   best_5k_s: number | null;
   best_10k_s: number | null;
   status: 'recording' | 'finished' | 'saved';
@@ -62,6 +66,9 @@ function toActivity(r: ActivityRow): Activity {
     title: r.title,
     visibility: r.visibility,
     routeShare: r.route_share,
+    source: r.source ?? 'phone',
+    externalId: r.external_id,
+    sourceDevice: r.source_device,
     startedAt: r.started_at,
     endedAt: r.ended_at ?? r.started_at,
     movingTimeS: r.moving_time_s,
@@ -98,6 +105,37 @@ export const activityRepo = {
       type,
       startedAt,
     );
+  },
+
+  /** An activity imported from a health platform, waiting on the summary screen like a recorded one. */
+  async createImported(data: {
+    id: string;
+    type: ActivityType;
+    source: ActivitySource;
+    externalId: string;
+    sourceDevice: string | null;
+    startedAt: number;
+  }): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT INTO activities (id, type, status, started_at, source, external_id, source_device)
+         VALUES (?, ?, 'recording', ?, ?, ?, ?)`,
+      data.id,
+      data.type,
+      data.startedAt,
+      data.source,
+      data.externalId,
+      data.sourceDevice,
+    );
+  },
+
+  async externalIds(source: ActivitySource): Promise<Set<string>> {
+    const db = await getDb();
+    const rows = await db.getAllAsync<{ external_id: string }>(
+      `SELECT external_id FROM activities WHERE source = ? AND external_id IS NOT NULL`,
+      source,
+    );
+    return new Set(rows.map((r) => r.external_id));
   },
 
   async appendPoints(activityId: string, points: RoutePoint[]): Promise<void> {

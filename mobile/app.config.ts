@@ -58,6 +58,17 @@ const config: ExpoConfig = {
       },
     ],
     'expo-task-manager',
+    [
+      '@kingstinct/react-native-healthkit',
+      {
+        NSHealthShareUsageDescription:
+          'Runner, Apple Watch veya diğer uygulamalarla kaydettiğin yürüyüş, koşu ve bisiklet antrenmanlarını rotasıyla içe aktarabilmek için Sağlık verilerini okur.',
+        NSHealthUpdateUsageDescription:
+          'Runner, istersen kaydettiğin aktiviteleri rotasıyla birlikte Sağlık uygulamasına yazar.',
+        // No background delivery: Runner only reads when you open the import screen.
+        background: false,
+      },
+    ],
     ['expo-notifications', { color: '#0B6E63' }],
     [
       'expo-image-picker',
@@ -73,6 +84,10 @@ const config: ExpoConfig = {
       { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '' },
     ],
   ],
+  extra: {
+    // Needed for Expo push tokens (`npx eas-cli init` prints it). Without it push is disabled.
+    eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined,
+  },
   experiments: {
     typedRoutes: true,
   },

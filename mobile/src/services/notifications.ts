@@ -29,6 +29,7 @@ export async function requestNotificationPermission(): Promise<'granted' | 'deni
 export async function notifyActivityProcessed(
   claim: ClaimResult,
   prefs: NotificationPrefs,
+  activityId: string,
 ): Promise<void> {
   if (!prefs.enabled) return;
   if ((await getNotificationPermission()) !== 'granted') return;
@@ -50,5 +51,8 @@ export async function notifyActivityProcessed(
           : 'Ayrıntılar için aktivite detayına bak.',
     };
   }
-  if (content) await Notifications.scheduleNotificationAsync({ content, trigger: null });
+  if (content) {
+    content.data = { kind: 'activity_completed', activityId };
+    await Notifications.scheduleNotificationAsync({ content, trigger: null });
+  }
 }

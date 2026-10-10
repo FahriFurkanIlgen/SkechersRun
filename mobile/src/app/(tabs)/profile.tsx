@@ -10,6 +10,7 @@ import type { Activity, ActivityType } from '../../domain/types';
 import { computeLocalStats, useActivityHistory } from '../../features/activity/hooks';
 import { VISIBILITY_ICON, VISIBILITY_LABEL } from '../../features/activity/visibility';
 import { useRemoteStats } from '../../features/profile/hooks';
+import { appleHealthSupported } from '../../services/health/appleHealth';
 import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
 import { fonts, radius, useTheme } from '../../theme/theme';
@@ -160,6 +161,7 @@ export default function Profile() {
                   <Txt variant="caption" muted>
                     {new Date(a.startedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} · {formatDistance(a.distanceM, units)} ·{' '}
                     {formatDuration(a.movingTimeS)}
+                    {a.source !== 'phone' ? ` · ${a.sourceDevice ?? 'Apple Sağlık'}` : ''}
                     {a.syncState === 'pending_upload' ? ' · yükleme bekliyor' : a.syncState === 'rejected' ? ' · doğrulanmadı' : ''}
                   </Txt>
                 </View>
@@ -174,6 +176,9 @@ export default function Profile() {
       </View>
 
       <Group>
+        {appleHealthSupported() ? (
+          <NavRow icon="heart" label="Apple Watch antrenmanlarını aktar" onPress={() => router.push('/import-health')} />
+        ) : null}
         <NavRow icon="users" label="Takip ve takipçiler" onPress={() => router.push('/people')} />
         <NavRow icon="rank" label="Kulüpler" onPress={() => router.push('/clubs')} />
         <NavRow icon="bell" label="Bildirimler" onPress={() => router.push('/inbox')} last />

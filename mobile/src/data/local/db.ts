@@ -55,6 +55,12 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE activities ADD COLUMN estimated_cells INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  ALTER TABLE activities ADD COLUMN source TEXT NOT NULL DEFAULT 'phone';
+  ALTER TABLE activities ADD COLUMN external_id TEXT;
+  ALTER TABLE activities ADD COLUMN source_device TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_external ON activities(source, external_id) WHERE external_id IS NOT NULL;
+  `,
 ];
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {

@@ -2,9 +2,16 @@
 
 Öncelik: **P1** sonraki sürüm · **P2** yakın dönem · **P3** fikir/araştırma.
 
+## Tamamlanan
+
+- **Apple Sağlık içe/dışa aktarma** — Apple Watch (veya başka uygulama) antrenmanları rotasıyla içe aktarılıp hücre kazandırıyor;
+  aktiviteler isteğe bağlı olarak Sağlık'a yazılıyor. Sunucuda `source`, `external_id`, `source_device` alanları ve tekrar içe
+  aktarma engeli (`0006_activity_source.sql`). Gerçek saat verisiyle cihaz testi bekliyor.
+- **Push bildirimleri** — token kaydı, `send-push` Edge Function, bildirime dokununca yönlendirme. Yayına alma adımları README'de.
+
 ## P1
 
-### Akıllı saat entegrasyonu
+### Akıllı saat entegrasyonu (kalanlar)
 Kullanıcılar aktiviteyi telefonsuz başlatabilmeli, bilekten takip edebilmeli ve kazandığı hücreleri saatten görebilmeli.
 
 - **Apple Watch uygulaması** (watchOS, SwiftUI): başlat/duraklat/bitir, süre/mesafe/tempo, GPS durumu, kazanılan hücre sayısı.
@@ -16,14 +23,11 @@ Kullanıcılar aktiviteyi telefonsuz başlatabilmeli, bilekten takip edebilmeli 
   - Garmin Connect / Polar AccessLink / Coros / Suunto API'leri üzerinden OAuth ile bağlanma, tamamlanan aktivitelerin (GPX/FIT) otomatik içe aktarılması.
   - İsteğe bağlı: Garmin Connect IQ veri alanı/uygulaması.
 - **Sunucu tarafı**
-  - `submit_activity` için kaynak alanı (`source`: phone / apple_watch / wear_os / garmin …) ve cihaz kimliği.
+  - ~~Kaynak alanı ve cihaz bilgisi~~ (yapıldı: `source`, `source_device`); yerel saat uygulamaları için yeni kaynak değerleri eklenecek.
   - İçe aktarılan aktivitelerde de aynı hile önleme kontrolleri; harici kaynaklarda `mocked` bilgisi olmadığından ek sezgiler (ör. FIT dosyası cihaz bilgisi, nabız verisinin varlığı).
   - Aynı aktivitenin hem telefondan hem saatten gelmesini engelleme (zaman çakışması kuralı zaten var; kaynak önceliği eklenmeli).
-- **Sağlık platformları**: HealthKit / Health Connect entegrasyonu (şu an yok; ayarlarda "desteklenmiyor" yazıyor). Saat verisinin büyük kısmı buradan gelir; önce bunun yapılması önerilir.
+- **Health Connect (Android)**: Apple Sağlık içe aktarmasının Android karşılığı (Wear OS ve Samsung/Garmin senkronlu veriler buradan gelir).
 - **Açık sorular**: Saatte harita gösterilecek mi (pil/performans)? Telefonsuz kayıt MVP'ye girecek mi? Hangi üçüncü taraf markalar öncelikli?
-
-### Push bildirimleri
-Expo push token kaydı + `notifications` tablosuna yapılan insert'leri gönderen Edge Function (bölge kaybı, takip isteği, kulüp daveti).
 
 ### Gerçek cihaz testleri
 2+ saatlik aktivitelerde pil tüketimi ve veri kaybı; Android üretici pil optimizasyonları (Xiaomi, Samsung vb.) için kullanıcı yönlendirmesi.
