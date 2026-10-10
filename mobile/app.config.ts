@@ -1,0 +1,79 @@
+import type { ExpoConfig } from 'expo/config';
+
+const bundleId = process.env.APP_BUNDLE_ID ?? 'app.runner.mobile';
+
+const config: ExpoConfig = {
+  name: 'Runner',
+  slug: 'runner',
+  scheme: 'runner',
+  version: '0.1.0',
+  orientation: 'portrait',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'automatic',
+  ios: {
+    bundleIdentifier: bundleId,
+    supportsTablet: false,
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
+  },
+  android: {
+    package: bundleId,
+    adaptiveIcon: {
+      // Brand primary (design token "Marka ana rengi").
+      backgroundColor: '#1F4FD1',
+      foregroundImage: './assets/android-icon-foreground.png',
+      monochromeImage: './assets/android-icon-monochrome.png',
+    },
+    predictiveBackGestureEnabled: false,
+  },
+  web: { favicon: './assets/favicon.png' },
+  plugins: [
+    'expo-router',
+    [
+      // Native splash = first frame of the in-app opening animation (symbol on a flat background).
+      'expo-splash-screen',
+      {
+        image: './assets/splash-icon.png',
+        imageWidth: 132,
+        resizeMode: 'contain',
+        backgroundColor: '#FFFFFF',
+        dark: { image: './assets/splash-icon-dark.png', backgroundColor: '#0E1113' },
+      },
+    ],
+    'expo-sqlite',
+    'expo-web-browser',
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Runner, aktivite kaydederken rotanı çizmek ve haritada çevrendeki bölgeleri göstermek için konumunu kullanır.',
+        locationAlwaysAndWhenInUsePermission:
+          'Runner, ekran kilitliyken de aktivite kaydına devam edebilmek için konumunu kullanır. Konum yalnızca kayıt sırasında izlenir.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+      },
+    ],
+    'expo-task-manager',
+    ['expo-notifications', { color: '#0B6E63' }],
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Runner, profil fotoğrafı seçebilmen için fotoğraflarına erişir.',
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ],
+    [
+      'react-native-maps',
+      // Android needs a Google Maps SDK key; iOS uses Apple Maps (no key).
+      { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '' },
+    ],
+  ],
+  experiments: {
+    typedRoutes: true,
+  },
+};
+
+export default config;
