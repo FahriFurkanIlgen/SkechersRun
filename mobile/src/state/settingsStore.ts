@@ -1,4 +1,4 @@
-import Storage from 'expo-sqlite/kv-store';
+import { kv as Storage } from '../data/local/kv';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type {
@@ -32,10 +32,10 @@ interface SettingsState {
   hapticFeedback: boolean;
   /** Partner (sponsored) content. Off unless the user opts in. */
   partnerContent: boolean;
-  /** User granted Apple Health access from Runner. */
-  appleHealthConnected: boolean;
-  /** Write saved Runner activities to Apple Health. */
-  appleHealthExport: boolean;
+  /** User granted health platform access (Apple Health / Health Connect) from Runner. */
+  healthConnected: boolean;
+  /** Write saved Runner activities to the health platform. */
+  healthExport: boolean;
   notificationPrefs: NotificationPrefs;
   set: (patch: Partial<Omit<SettingsState, 'set' | 'reset'>>) => void;
   reset: () => void;
@@ -58,8 +58,8 @@ const defaults = {
   voiceFeedback: false,
   hapticFeedback: true,
   partnerContent: false,
-  appleHealthConnected: false,
-  appleHealthExport: false,
+  healthConnected: false,
+  healthExport: false,
   notificationPrefs: {
     enabled: true,
     movementReminders: true,
@@ -80,10 +80,23 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'runner.settings',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => Storage),
-      // v1 → v2: new preferences get their defaults.
-      migrate: (persisted) => ({ ...defaults, ...(persisted as object), notificationPrefs: { ...defaults.notificationPrefs, ...((persisted as { notificationPrefs?: object })?.notificationPrefs ?? {}) } }),
+      // v1 → v2: new preferences get their defaults. v2 → v3: Apple Health flags became platform-neutral.
+      migrate: (persisted) => {
+        const { appleHealthConnected, appleHealthExport, ...rest } = (persisted ?? {}) as {
+          appleHealthConnected?: boolean;
+          appleHealthExport?: boolean;
+          notificationPrefs?: object;
+        };
+        return {
+          ...defaults,
+          ...(appleHealthConnected != null ? { healthConnected: appleHealthConnected } : {}),
+          ...(appleHealthExport != null ? { healthExport: appleHealthExport } : {}),
+          ...rest,
+          notificationPrefs: { ...defaults.notificationPrefs, ...(rest.notificationPrefs ?? {}) },
+        };
+      },
       partialize: ({ set: _s, reset: _r, ...rest }) => rest,
     },
   ),

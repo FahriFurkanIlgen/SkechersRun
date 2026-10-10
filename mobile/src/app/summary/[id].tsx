@@ -6,13 +6,7 @@ import { Icon } from '../../components/Icon';
 import { RouteMap } from '../../components/RouteMap';
 import { Banner, Button, EmptyState, IconButton, Loading, ProgressBar, Segmented, Stat, StatGrid, Txt } from '../../components/ui';
 import { backendConfigured } from '../../data/remote/supabase';
-import {
-  ACTIVITY_LABEL,
-  durationLabel,
-  formatDistance, formatGoalDistance,
-  formatDuration,
-  formatPaceOrSpeed,
-} from '../../domain/format';
+import { ACTIVITY_LABEL, durationLabel, formatDistance, formatDuration, formatGoalDistance, formatPaceOrSpeed, sourceLabel } from '../../domain/format';
 import type { ActivityType, Visibility } from '../../domain/types';
 import { activityActions } from '../../features/activity/activityActions';
 import { estimateExplanation, reasonTexts } from '../../features/activity/claimText';
@@ -76,7 +70,7 @@ export default function Summary() {
   const syncFailed = saved && activity.syncState === 'pending_upload' && !!activity.lastSyncError;
   const weekDone = goal.doneM + (saved ? 0 : activity.distanceM);
   const date = new Date(activity.startedAt);
-  const dateText = `${date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} · ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · ${ACTIVITY_LABEL[activity.type]}${activity.source !== 'phone' ? ` · ${activity.sourceDevice ?? 'Apple Sağlık'}` : ''}`;
+  const dateText = `${date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} · ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · ${ACTIVITY_LABEL[activity.type]}${sourceLabel(activity) ? ` · ${sourceLabel(activity)}` : ''}`;
 
   const save = async () => {
     setBusy(true);

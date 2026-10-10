@@ -3,7 +3,7 @@ import { evaluateFix, signalQuality } from '../gpsFilter';
 import { bestEffortS, currentSpeedMps, routeDistanceM } from '../metrics';
 import { estimateClaim } from '../territory';
 import { cellAt, cellCenter, cellCenterMercator, cellRing } from '../hex';
-import { formatDistance, formatDuration, formatPaceOrSpeed, formatArea, formatGoalDistance } from '../format';
+import { formatDistance, formatDuration, formatPaceOrSpeed, formatArea, formatGoalDistance, sourceLabel } from '../format';
 import { removePointsInZones, suggestPrivacyZones, trimRouteEnds } from '../privacy';
 import { weeklyGoals, startOfWeek } from '../goals';
 import { RULES } from '../rules';
@@ -128,6 +128,12 @@ describe('territory estimate', () => {
 });
 
 describe('format', () => {
+  it('labels imported activity sources', () => {
+    expect(sourceLabel({ source: 'phone', sourceDevice: null })).toBeNull();
+    expect(sourceLabel({ source: 'apple_health', sourceDevice: 'Apple Watch' })).toBe('Apple Watch');
+    expect(sourceLabel({ source: 'health_connect', sourceDevice: null })).toBe('Health Connect');
+  });
+
   it('formats distances and durations', () => {
     expect(formatDistance(850, 'metric')).toBe('850 m');
     expect(formatDistance(5000, 'metric')).toBe('5,00 km');

@@ -122,7 +122,7 @@ kulüpler, veri ve hesap silme).
 | Bildirimler | Uygulama içi kutu, yerel hatırlatmalar, push (Edge Function + webhook; EAS proje kimliği ve kurulum gerekir, uçtan uca doğrulanmadı) |
 | Ayarlar: görünürlük, gizli bölgeler, sıralamada görünme, birim, tema, bildirimler, iş ortaklığı içeriği, verilerimi indir (JSON), konum geçmişi/hesap silme | Çalışıyor |
 | Apple Sağlık: Apple Watch / diğer uygulama antrenmanlarını rotasıyla içe aktarma, aktiviteleri Sağlık'a yazma | Uygulandı; gerçek Apple Watch verisiyle cihazda test edilmesi gerekiyor |
-| Health Connect (Android) | Yok — sonraki adım |
+| Health Connect (Android): Wear OS / Galaxy Watch / Garmin (telefon uygulaması üzerinden) antrenmanlarını rotasıyla içe aktarma, aktiviteleri Health Connect'e yazma | Uygulandı; Android 14 emülatöründe izin akışı doğrulandı, gerçek saat verisiyle test edilmedi. Google Play'de yayın için Health Connect izin beyanı (Play Console) gerekir |
 | İlçe/şehir adıyla sıralama (tasarımdaki "Kadıköy / İstanbul") | Yarıçap tabanlı (5 / 25 km) olarak uygulandı; ad için ters geocoding servisi gerekir |
 | Sıralama değişim okları (↑2) | Yok — geçmiş sıralama anlık görüntüleri gerekiyor |
 
@@ -131,6 +131,5 @@ kulüpler, veri ve hesap silme).
 Ayrıntılı ve önceliklendirilmiş liste: [docs/backlog.md](docs/backlog.md). Öne çıkanlar:
 
 1. Yerel saat uygulamaları (watchOS, Wear OS) — açık ürün soruları backlog'da.
-2. Health Connect (Android) ile içe aktarma.
-3. Gerçek cihazda uzun aktivite pil ve veri kaybı testleri.
-4. Onaylı marka kılavuzuyla renk/yazı tipi/ikon güncellemesi.
+2. Gerçek cihazda uzun aktivite pil ve veri kaybı testleri.
+3. Onaylı marka kılavuzuyla renk/yazı tipi/ikon güncellemesi.

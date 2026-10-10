@@ -16,6 +16,7 @@ import { routeFromExternalLocations } from '../../domain/importRoute';
 import { RULES } from '../../domain/rules';
 import { estimateClaim } from '../../domain/territory';
 import type { Activity, ActivityType, RoutePoint, Visibility } from '../../domain/types';
+import { NoRouteError, type HealthWorkout } from './types';
 
 /**
  * Apple Health (HealthKit) integration:
@@ -69,18 +70,6 @@ export async function connectAppleHealth(): Promise<boolean> {
   });
 }
 
-export interface HealthWorkout {
-  uuid: string;
-  type: ActivityType;
-  startedAt: number;
-  endedAt: number;
-  durationS: number;
-  distanceM: number | null;
-  sourceName: string;
-  deviceName: string | null;
-  alreadyImported: boolean;
-}
-
 function toMeters(q?: { unit: string; quantity: number }): number | null {
   if (!q) return null;
   if (q.unit === 'm') return q.quantity;
@@ -129,12 +118,6 @@ export async function listHealthWorkouts(): Promise<HealthWorkout[]> {
       deviceName: deviceLabel(w),
       alreadyImported: imported.has(w.uuid),
     }));
-}
-
-export class NoRouteError extends Error {
-  constructor() {
-    super('Bu antrenmanda GPS rotası yok (ör. iç mekân veya konum kapalıyken kaydedilmiş). Hücre kazanmak için rota gerekir.');
-  }
 }
 
 /**

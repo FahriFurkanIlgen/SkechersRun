@@ -5,12 +5,12 @@ import { Icon } from '../../components/Icon';
 import { Avatar, Banner, Button, Card, Chips, EmptyState, Group, IconButton, Loading, Metric, NavRow, Screen, Txt } from '../../components/ui';
 import { activityRepo } from '../../data/local/activityRepo';
 import { backendConfigured } from '../../data/remote/supabase';
-import { formatDistance, formatDuration } from '../../domain/format';
+import { formatDistance, formatDuration, sourceLabel } from '../../domain/format';
 import type { Activity, ActivityType } from '../../domain/types';
 import { computeLocalStats, useActivityHistory } from '../../features/activity/hooks';
 import { VISIBILITY_ICON, VISIBILITY_LABEL } from '../../features/activity/visibility';
 import { useRemoteStats } from '../../features/profile/hooks';
-import { appleHealthSupported } from '../../services/health/appleHealth';
+import { health } from '../../services/health';
 import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
 import { fonts, radius, useTheme } from '../../theme/theme';
@@ -161,7 +161,7 @@ export default function Profile() {
                   <Txt variant="caption" muted>
                     {new Date(a.startedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} · {formatDistance(a.distanceM, units)} ·{' '}
                     {formatDuration(a.movingTimeS)}
-                    {a.source !== 'phone' ? ` · ${a.sourceDevice ?? 'Apple Sağlık'}` : ''}
+                    {sourceLabel(a) ? ` · ${sourceLabel(a)}` : ''}
                     {a.syncState === 'pending_upload' ? ' · yükleme bekliyor' : a.syncState === 'rejected' ? ' · doğrulanmadı' : ''}
                   </Txt>
                 </View>
@@ -176,8 +176,8 @@ export default function Profile() {
       </View>
 
       <Group>
-        {appleHealthSupported() ? (
-          <NavRow icon="heart" label="Apple Watch antrenmanlarını aktar" onPress={() => router.push('/import-health')} />
+        {health ? (
+          <NavRow icon="heart" label="Saat antrenmanlarını aktar" sub={health.watches} onPress={() => router.push('/import-health')} />
         ) : null}
         <NavRow icon="users" label="Takip ve takipçiler" onPress={() => router.push('/people')} />
         <NavRow icon="rank" label="Kulüpler" onPress={() => router.push('/clubs')} />

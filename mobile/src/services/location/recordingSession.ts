@@ -1,4 +1,4 @@
-import Storage from 'expo-sqlite/kv-store';
+import { kv as Storage } from '../../data/local/kv';
 import type { ActivityType, Visibility } from '../../domain/types';
 
 /**

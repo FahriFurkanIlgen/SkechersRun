@@ -10,7 +10,7 @@ import type { NotificationPrefs } from '../../domain/types';
 import { VISIBILITY_OPTIONS } from '../../features/activity/visibility';
 import { exportLocalData } from '../../features/profile/exportData';
 import { profileActions } from '../../features/profile/profileActions';
-import { appleHealthSupported, connectAppleHealth } from '../../services/health/appleHealth';
+import { health } from '../../services/health';
 import { getLocationAccess, openAppSettings, type LocationAccess } from '../../services/location/permissions';
 import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
@@ -58,7 +58,6 @@ export default function Settings() {
     ]);
 
   const n = s.notificationPrefs;
-  const healthSupported = appleHealthSupported();
 
   return (
     <Screen>
@@ -142,37 +141,38 @@ export default function Settings() {
       </Group>
 
       <Group title="Sağlık ve akıllı saat">
-        {healthSupported ? (
+        {health ? (
           <>
             <NavRow
               icon="heart"
-              label="Apple Watch / Sağlık antrenmanlarını aktar"
-              sub={s.appleHealthConnected ? 'Son 7 günün antrenmanları, rotasıyla' : 'Apple Sağlık’a bağlan'}
+              label="Saat antrenmanlarını aktar"
+              sub={s.healthConnected ? `${health.nameFrom}, son 7 gün, rotasıyla` : `${health.nameTo} bağlan (${health.watches})`}
               onPress={() => router.push('/import-health')}
             />
             <SwitchRow
-              label="Aktiviteleri Apple Sağlık’a kaydet"
-              sub="Kaydettiğin aktiviteler rotasıyla Sağlık uygulamasına yazılır"
-              value={s.appleHealthExport && s.appleHealthConnected}
+              label={`Aktiviteleri ${health.nameTo} kaydet`}
+              sub="Kaydettiğin aktiviteler rotasıyla birlikte yazılır"
+              value={s.healthExport && s.healthConnected}
               onChange={(v) =>
                 run(async () => {
-                  if (v && !s.appleHealthConnected) {
-                    await connectAppleHealth();
-                    s.set({ appleHealthConnected: true });
+                  if (v && !s.healthConnected) {
+                    const granted = await health!.connect();
+                    if (!granted && health!.source === 'health_connect') throw new Error(`İzin verilmedi. ${health!.permissionHint} bölümünden açabilirsin.`);
+                    s.set({ healthConnected: true });
                   }
-                  s.set({ appleHealthExport: v });
+                  s.set({ healthExport: v });
                 })
               }
               last
             />
           </>
         ) : (
-          <NavRow icon="heart" label="Health Connect" sub="Android desteği sonraki sürümde" last />
+          <NavRow icon="heart" label="Sağlık verisi" sub="Bu cihazda desteklenmiyor" last />
         )}
       </Group>
       <Txt variant="caption" muted>
         Yalnızca antrenmanlar, rotaları ve mesafe okunur/yazılır. Sağlık verilerin reklam veya iş ortaklığı amacıyla kullanılmaz;
-        izinleri Sağlık uygulamasından istediğin zaman geri alabilirsin.
+        izinleri istediğin zaman geri alabilirsin.
       </Txt>
 
       <Group title="İş ortaklığı içeriği">

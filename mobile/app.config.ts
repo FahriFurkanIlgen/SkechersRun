@@ -28,6 +28,15 @@ const config: ExpoConfig = {
       monochromeImage: './assets/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    // Health Connect: workouts and distance only. Routes are read with the
+    // per-workout consent dialog, so no READ_EXERCISE_ROUTES permission.
+    permissions: [
+      'android.permission.health.READ_EXERCISE',
+      'android.permission.health.READ_DISTANCE',
+      'android.permission.health.WRITE_EXERCISE',
+      'android.permission.health.WRITE_EXERCISE_ROUTE',
+      'android.permission.health.WRITE_DISTANCE',
+    ],
   },
   web: { favicon: './assets/favicon.png' },
   plugins: [
@@ -69,6 +78,9 @@ const config: ExpoConfig = {
         background: false,
       },
     ],
+    // Health Connect (Android): needs minSdk 26.
+    'react-native-health-connect',
+    ['expo-build-properties', { android: { minSdkVersion: 26 } }],
     ['expo-notifications', { color: '#0B6E63' }],
     [
       'expo-image-picker',

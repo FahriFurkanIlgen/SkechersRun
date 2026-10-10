@@ -16,6 +16,7 @@ import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getDb } from '../data/local/db';
 import { AnimatedSplash } from '../features/splash/AnimatedSplash';
+import { health } from '../services/health';
 import { handleNotificationTaps, syncPushToken } from '../services/push';
 import { syncLocalReminders } from '../services/reminders';
 import { syncPending } from '../services/syncService';
@@ -118,7 +119,7 @@ export default function RootLayout() {
           <Stack.Screen name="people" options={{ title: 'Arkadaş bul' }} />
           <Stack.Screen name="clubs" options={{ title: 'Kulüpler' }} />
           <Stack.Screen name="how-it-works" options={{ title: 'Oyun kuralları' }} />
-          <Stack.Screen name="import-health" options={{ title: 'Apple Sağlık’tan aktar' }} />
+          <Stack.Screen name="import-health" options={{ title: health ? `${health.nameFrom} aktar` : 'Antrenman aktar' }} />
         </Stack>
       ) : (
         <View style={{ flex: 1, backgroundColor: colors.bg }} />

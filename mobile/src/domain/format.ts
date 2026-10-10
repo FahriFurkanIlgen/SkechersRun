@@ -1,4 +1,4 @@
-import type { ActivityType, UnitSystem } from './types';
+import type { Activity, ActivityType, UnitSystem } from './types';
 
 const KM_PER_MILE = 1.609344;
 
@@ -84,6 +84,14 @@ export const ACTIVITY_LABEL: Record<ActivityType, string> = {
   run: 'Koşu',
   ride: 'Bisiklet',
 };
+
+const SOURCE_LABEL = { phone: 'Telefon', apple_health: 'Apple Sağlık', health_connect: 'Health Connect' } as const;
+
+/** Where an imported activity came from ("Apple Watch", "Garmin Forerunner"…); null for phone recordings. */
+export function sourceLabel(a: Pick<Activity, 'source' | 'sourceDevice'>): string | null {
+  if (a.source === 'phone') return null;
+  return a.sourceDevice ?? SOURCE_LABEL[a.source];
+}
 
 /** "Bugün 18:20", "Dün 08:05" or a short date. */
 export function relativeTime(iso: string): string {

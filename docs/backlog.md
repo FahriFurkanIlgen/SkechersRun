@@ -7,6 +7,9 @@
 - **Apple Sağlık içe/dışa aktarma** — Apple Watch (veya başka uygulama) antrenmanları rotasıyla içe aktarılıp hücre kazandırıyor;
   aktiviteler isteğe bağlı olarak Sağlık'a yazılıyor. Sunucuda `source`, `external_id`, `source_device` alanları ve tekrar içe
   aktarma engeli (`0006_activity_source.sql`). Gerçek saat verisiyle cihaz testi bekliyor.
+- **Health Connect içe/dışa aktarma (Android)** — Wear OS, Galaxy Watch ve telefon uygulaması Health Connect'e yazan saatlerin
+  (Garmin, Polar…) antrenmanları rotasıyla içe aktarılıyor; rota için Health Connect her antrenmanda ayrıca onay istiyor.
+  iOS ve Android tek bir sağlık katmanını (`services/health`) kullanıyor. Play Store yayını için Health Connect izin beyanı gerekli.
 - **Push bildirimleri** — token kaydı, `send-push` Edge Function, bildirime dokununca yönlendirme. Yayına alma adımları README'de.
 
 ## P1
@@ -26,7 +29,6 @@ Kullanıcılar aktiviteyi telefonsuz başlatabilmeli, bilekten takip edebilmeli 
   - ~~Kaynak alanı ve cihaz bilgisi~~ (yapıldı: `source`, `source_device`); yerel saat uygulamaları için yeni kaynak değerleri eklenecek.
   - İçe aktarılan aktivitelerde de aynı hile önleme kontrolleri; harici kaynaklarda `mocked` bilgisi olmadığından ek sezgiler (ör. FIT dosyası cihaz bilgisi, nabız verisinin varlığı).
   - Aynı aktivitenin hem telefondan hem saatten gelmesini engelleme (zaman çakışması kuralı zaten var; kaynak önceliği eklenmeli).
-- **Health Connect (Android)**: Apple Sağlık içe aktarmasının Android karşılığı (Wear OS ve Samsung/Garmin senkronlu veriler buradan gelir).
 - **Açık sorular**: Saatte harita gösterilecek mi (pil/performans)? Telefonsuz kayıt MVP'ye girecek mi? Hangi üçüncü taraf markalar öncelikli?
 
 ### Gerçek cihaz testleri

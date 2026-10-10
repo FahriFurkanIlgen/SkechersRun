@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import Storage from 'expo-sqlite/kv-store';
+import { kv as Storage } from '../local/kv';
 import { AppState } from 'react-native';
 
 /**

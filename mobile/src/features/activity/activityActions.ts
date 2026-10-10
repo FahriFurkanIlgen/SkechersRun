@@ -1,7 +1,7 @@
 import { activityRepo } from '../../data/local/activityRepo';
 import { deleteRemoteActivity, updateRemoteActivity } from '../../data/remote/activityApi';
 import type { RouteShare, Visibility } from '../../domain/types';
-import { exportToAppleHealth } from '../../services/health/appleHealth';
+import { health } from '../../services/health';
 import { canSync, syncPending } from '../../services/syncService';
 import { useSettings } from '../../state/settingsStore';
 
@@ -16,11 +16,11 @@ export const activityActions = {
     });
     // Fire and forget: failures stay in the outbox and are retried later.
     void syncPending();
-    const { appleHealthConnected, appleHealthExport } = useSettings.getState();
-    if (appleHealthConnected && appleHealthExport) {
+    const { healthConnected, healthExport } = useSettings.getState();
+    if (health && healthConnected && healthExport) {
       void (async () => {
         const activity = await activityRepo.get(id);
-        if (activity) await exportToAppleHealth(activity, await activityRepo.getPoints(id));
+        if (activity) await health.exportActivity(activity, await activityRepo.getPoints(id));
       })().catch(() => undefined);
     }
   },

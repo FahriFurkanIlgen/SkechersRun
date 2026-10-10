@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { RouteMap } from '../../components/RouteMap';
 import { Banner, Button, Card, EmptyState, Field, Loading, Screen, Segmented, Stat, StatGrid, Txt } from '../../components/ui';
-import { ACTIVITY_LABEL, durationLabel, formatCells, formatDistance, formatDuration, formatPaceOrSpeed } from '../../domain/format';
+import { ACTIVITY_LABEL, durationLabel, formatCells, formatDistance, formatDuration, formatPaceOrSpeed, sourceLabel } from '../../domain/format';
 import type { RouteShare, Visibility } from '../../domain/types';
 import { activityActions } from '../../features/activity/activityActions';
 import { estimateExplanation, reasonTexts, syncStateText } from '../../features/activity/claimText';
@@ -80,7 +80,7 @@ export default function ActivityDetail() {
         <Txt variant="title" style={{ fontSize: 26 }}>{activity.title || ACTIVITY_LABEL[activity.type]}</Txt>
         <Txt variant="bodySm" muted>
           {ACTIVITY_LABEL[activity.type]} · {new Date(activity.startedAt).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}
-          {activity.source !== 'phone' ? ` · ${activity.sourceDevice ?? 'Apple Sağlık'} ile kaydedildi` : ''}
+          {sourceLabel(activity) ? ` · ${sourceLabel(activity)} ile kaydedildi` : ''}
         </Txt>
       </View>
       {points.length > 1 ? (
