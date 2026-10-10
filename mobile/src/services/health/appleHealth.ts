@@ -28,6 +28,15 @@ import { NoRouteError, type HealthWorkout } from './types';
  */
 
 const OWN_BUNDLE_HINT = 'runner';
+
+/**
+ * Workouts the phone app itself wrote to Health (export) carry its activity id
+ * as HKExternalUUID; those are already Runner activities. Workouts recorded by
+ * the Runner watch app have no such key and are imported like any other.
+ */
+function writtenByPhoneApp(w: WorkoutProxyTyped): boolean {
+  return w.sourceRevision.source.bundleIdentifier.toLowerCase().includes(OWN_BUNDLE_HINT) && w.metadata?.HKExternalUUID != null;
+}
 const IMPORT_WINDOW_DAYS = 7; // the server rejects older activities
 
 const TYPE_FROM_HK: Partial<Record<WorkoutActivityType, ActivityType>> = {
@@ -93,7 +102,7 @@ function deviceLabel(w: WorkoutProxyTyped): string | null {
   return w.sourceRevision.productType?.startsWith('Watch') ? 'Apple Watch' : null;
 }
 
-/** Walking/running/cycling workouts from the last week that Runner did not write itself. */
+/** Walking/running/cycling workouts from the last week (except the phone app's own exports). */
 export async function listHealthWorkouts(): Promise<HealthWorkout[]> {
   const since = new Date(Date.now() - IMPORT_WINDOW_DAYS * 86_400_000);
   const workouts = await queryWorkoutSamples({
@@ -106,7 +115,7 @@ export async function listHealthWorkouts(): Promise<HealthWorkout[]> {
   });
   const imported = await activityRepo.externalIds('apple_health');
   return workouts
-    .filter((w) => !w.sourceRevision.source.bundleIdentifier.toLowerCase().includes(OWN_BUNDLE_HINT))
+    .filter((w) => !writtenByPhoneApp(w))
     .map((w) => ({
       uuid: w.uuid,
       type: TYPE_FROM_HK[w.workoutActivityType] ?? 'walk',

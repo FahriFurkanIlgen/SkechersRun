@@ -10,6 +10,10 @@
 - **Health Connect içe/dışa aktarma (Android)** — Wear OS, Galaxy Watch ve telefon uygulaması Health Connect'e yazan saatlerin
   (Garmin, Polar…) antrenmanları rotasıyla içe aktarılıyor; rota için Health Connect her antrenmanda ayrıca onay istiyor.
   iOS ve Android tek bir sağlık katmanını (`services/health`) kullanıyor. Play Store yayını için Health Connect izin beyanı gerekli.
+- **Apple Watch uygulaması (ilk sürüm)** — `mobile/targets/watch` (SwiftUI) + `mobile/modules/runner-watch` (WatchConnectivity köprüsü).
+  Saatten başlatılan kayıt saatin GPS'iyle yapılır (HKWorkoutSession + CoreLocation, telefondakiyle aynı GPS filtresi),
+  antrenman rotasıyla Sağlık'a yazılır ve telefon otomatik içe aktarır. Telefonda kayıt sürerken saat onu yansıtır ve
+  duraklat/devam/bitir komutlarını iletir. Haritasız (pil). Kararlar: saatte harita yok; iki mod birden; önce Apple Watch.
 - **Push bildirimleri** — token kaydı, `send-push` Edge Function, bildirime dokununca yönlendirme. Yayına alma adımları README'de.
 
 ## P1
@@ -17,10 +21,11 @@
 ### Akıllı saat entegrasyonu (kalanlar)
 Kullanıcılar aktiviteyi telefonsuz başlatabilmeli, bilekten takip edebilmeli ve kazandığı hücreleri saatten görebilmeli.
 
-- **Apple Watch uygulaması** (watchOS, SwiftUI): başlat/duraklat/bitir, süre/mesafe/tempo, GPS durumu, kazanılan hücre sayısı.
-  - Telefon yanındayken WatchConnectivity ile canlı senkron; telefonsuz koşuda saatin GPS'iyle kayıt (HKWorkoutSession + CLLocation), bitince rota telefona aktarılır.
+- **Apple Watch (kalanlar)**
   - Komplikasyon / Smart Stack: haftalık hedef halkası, sahip olunan hücre sayısı.
-  - Expo tarafında: watch target için config plugin (ör. `@bacons/apple-targets`) veya ayrı Xcode target; JS ile WatchConnectivity köprüsü.
+  - Saatten telefondaki kaydı başlatma (şu an saatten başlatılan kayıt saatte yapılır; telefonu arka planda uyandırıp konum
+    takibini başlatmak iOS'ta güvenilir değil).
+  - Saatte sesli/titreşimli km bildirimi; saat dışı kayıt sırasında kalp atışı (isteğe bağlı, gizlilik kararı gerekir).
 - **Wear OS uygulaması** (Kotlin, Compose for Wear OS): aynı akış; Health Services `ExerciseClient` ile kayıt, Data Layer API ile telefonla senkron; Tile ve komplikasyon.
 - **Üçüncü taraf saatler (Garmin, Polar, Coros, Suunto)**: saat uygulaması yerine **aktivite içe aktarma**.
   - Garmin Connect / Polar AccessLink / Coros / Suunto API'leri üzerinden OAuth ile bağlanma, tamamlanan aktivitelerin (GPX/FIT) otomatik içe aktarılması.
@@ -29,7 +34,7 @@ Kullanıcılar aktiviteyi telefonsuz başlatabilmeli, bilekten takip edebilmeli 
   - ~~Kaynak alanı ve cihaz bilgisi~~ (yapıldı: `source`, `source_device`); yerel saat uygulamaları için yeni kaynak değerleri eklenecek.
   - İçe aktarılan aktivitelerde de aynı hile önleme kontrolleri; harici kaynaklarda `mocked` bilgisi olmadığından ek sezgiler (ör. FIT dosyası cihaz bilgisi, nabız verisinin varlığı).
   - Aynı aktivitenin hem telefondan hem saatten gelmesini engelleme (zaman çakışması kuralı zaten var; kaynak önceliği eklenmeli).
-- **Açık sorular**: Saatte harita gösterilecek mi (pil/performans)? Telefonsuz kayıt MVP'ye girecek mi? Hangi üçüncü taraf markalar öncelikli?
+- **Açık soru**: Hangi üçüncü taraf markalar öncelikli (Garmin, Polar, Coros, Suunto)?
 
 ### Gerçek cihaz testleri
 2+ saatlik aktivitelerde pil tüketimi ve veri kaybı; Android üretici pil optimizasyonları (Xiaomi, Samsung vb.) için kullanıcı yönlendirmesi.

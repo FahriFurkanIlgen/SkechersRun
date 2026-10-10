@@ -1,0 +1,7 @@
+{
+  "name": "runner-watch",
+  "version": "0.1.0",
+  "description": "WatchConnectivity bridge between the Runner iOS app and its Apple Watch app",
+  "main": "index.ts",
+  "private": true
+}

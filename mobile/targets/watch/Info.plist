@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Runner, saatte kaydettiğin antrenmanın mesafesini gösterebilmek için Sağlık verilerini okur. Nabız gibi diğer veriler okunmaz.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Runner, saatte kaydettiğin yürüyüş, koşu ve bisiklet antrenmanlarını rotasıyla Sağlık'a kaydeder; telefondaki Runner bunları içe aktarır.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Runner, saatte aktivite kaydederken rotanı çizmek ve kazandığın hücreleri hesaplamak için konumunu kullanır.</string>
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
+</dict>
+</plist>

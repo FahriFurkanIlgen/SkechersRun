@@ -53,6 +53,11 @@ export function handleNotificationTaps(): () => void {
   const open = (response: Notifications.NotificationResponse | null) => {
     const data = response?.notification.request.content.data as { kind?: NotificationKind; activityId?: string } | undefined;
     if (!data?.kind) return;
+    // Local notification for a workout recorded on the Apple Watch (services/watch.ts).
+    if ((data.kind as string) === 'watch_workout' && data.activityId) {
+      router.push({ pathname: '/summary/[id]', params: { id: data.activityId } });
+      return;
+    }
     if (data.activityId && data.kind === 'activity_completed') {
       router.push({ pathname: '/activity/[id]', params: { id: data.activityId } });
       return;

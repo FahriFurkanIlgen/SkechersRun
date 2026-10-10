@@ -41,6 +41,8 @@ const config: ExpoConfig = {
   web: { favicon: './assets/favicon.png' },
   plugins: [
     'expo-router',
+    // Apple Watch app (targets/watch), generated into the Xcode project on prebuild.
+    '@bacons/apple-targets',
     [
       // Native splash = first frame of the in-app opening animation (symbol on a flat background).
       'expo-splash-screen',

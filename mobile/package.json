@@ -42,6 +42,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@bacons/apple-targets": "^5.0.0",
     "@resvg/resvg-js": "^2.6.2",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",

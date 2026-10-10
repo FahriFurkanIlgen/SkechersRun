@@ -60,6 +60,23 @@ xcrun simctl location booted start --speed=3 41.0422,29.0083 41.0440,29.0083 41.
 
 Bu komut ~1 km'lik bir döngüyü 3 m/s hızla yürütür. Durdurmak için: `xcrun simctl location booted clear`.
 
+### Apple Watch uygulaması
+
+Saat uygulaması `mobile/targets/watch/` altında (SwiftUI, watchOS 10+). `@bacons/apple-targets` eklentisi `npx expo prebuild`
+sırasında onu Xcode projesine `RunnerWatch` hedefi olarak ekler; iOS uygulamasıyla birlikte derlenip saate kurulur. Telefon
+ile saat arasındaki köprü `mobile/modules/runner-watch/` yerel Expo modülüdür (WatchConnectivity).
+
+- **Saatten başlatılan kayıt**: saatin GPS'iyle kaydeder (telefon gerekmez). Bitince antrenman rotasıyla Apple Sağlık'a
+  yazılır ve telefona haber verilir; telefondaki Runner açıldığında antrenmanı içe aktarır ve özete götürür. Sağlık verisi
+  saatten telefona gecikmeli eşitlenebildiği için henüz görünmeyen antrenman bir sonraki açılışta yeniden denenir.
+- **Telefonda kayıt sürerken**: saat telefondaki kaydı canlı gösterir (süre, mesafe, tempo, GPS, tahmini hücre) ve
+  duraklat / devam / bitir komutlarını telefona iletir.
+- Saatteki hücre sayısı yalnızca rota hücrelerinin tahminidir; kesin sonucu (kapalı döngü içi dahil) sunucu hesaplar.
+
+Saat hedefinin paket kimliği iOS uygulamasınınkinin sonuna `.watchkitapp` eklenerek üretilir. Cihaza kurulumda paket
+kimliğini `xcodebuild` parametresiyle ezmek yerine `APP_BUNDLE_ID` ve `APPLE_TEAM_ID` ile `npx expo prebuild --clean`
+çalıştır; aksi halde saat uygulamasının eşlik eden uygulama kimliği tutmaz.
+
 ## Backend kurulumu (Supabase)
 
 1. Supabase projesi oluştur; **Database → Extensions** altında `postgis` etkin olmalı (migration da etkinleştirir).
@@ -122,6 +139,7 @@ kulüpler, veri ve hesap silme).
 | Bildirimler | Uygulama içi kutu, yerel hatırlatmalar, push (Edge Function + webhook; EAS proje kimliği ve kurulum gerekir, uçtan uca doğrulanmadı) |
 | Ayarlar: görünürlük, gizli bölgeler, sıralamada görünme, birim, tema, bildirimler, iş ortaklığı içeriği, verilerimi indir (JSON), konum geçmişi/hesap silme | Çalışıyor |
 | Apple Sağlık: Apple Watch / diğer uygulama antrenmanlarını rotasıyla içe aktarma, aktiviteleri Sağlık'a yazma | Uygulandı; gerçek Apple Watch verisiyle cihazda test edilmesi gerekiyor |
+| Apple Watch uygulaması: saatte telefonsuz kayıt (Sağlık'a rotasıyla yazılır, telefon otomatik içe aktarır), telefondaki kaydı yansıtma ve saatten duraklat/devam/bitir | Uygulandı; watchOS simülatöründe kayıt akışı doğrulandı, gerçek saatte koşuyla test edilmedi |
 | Health Connect (Android): Wear OS / Galaxy Watch / Garmin (telefon uygulaması üzerinden) antrenmanlarını rotasıyla içe aktarma, aktiviteleri Health Connect'e yazma | Uygulandı; Android 14 emülatöründe izin akışı doğrulandı, gerçek saat verisiyle test edilmedi. Google Play'de yayın için Health Connect izin beyanı (Play Console) gerekir |
 | İlçe/şehir adıyla sıralama (tasarımdaki "Kadıköy / İstanbul") | Yarıçap tabanlı (5 / 25 km) olarak uygulandı; ad için ters geocoding servisi gerekir |
 | Sıralama değişim okları (↑2) | Yok — geçmiş sıralama anlık görüntüleri gerekiyor |
@@ -130,6 +148,6 @@ kulüpler, veri ve hesap silme).
 
 Ayrıntılı ve önceliklendirilmiş liste: [docs/backlog.md](docs/backlog.md). Öne çıkanlar:
 
-1. Yerel saat uygulamaları (watchOS, Wear OS) — açık ürün soruları backlog'da.
+1. Wear OS uygulaması; Apple Watch komplikasyonu.
 2. Gerçek cihazda uzun aktivite pil ve veri kaybı testleri.
 3. Onaylı marka kılavuzuyla renk/yazı tipi/ikon güncellemesi.

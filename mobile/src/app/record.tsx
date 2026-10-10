@@ -1,6 +1,6 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, SignalBars } from '../components/Icon';
@@ -10,6 +10,7 @@ import { ACTIVITY_LABEL, durationLabel, formatCells, formatDuration, formatPaceO
 import type { SignalQuality } from '../domain/gpsFilter';
 import { currentSpeedMps } from '../domain/metrics';
 import { estimateClaim } from '../domain/territory';
+import { registerRemoteFinish } from '../features/activity/remoteFinish';
 import { useRecordingClock } from '../features/activity/useRecordingClock';
 import { announceSplit, splitUnitM } from '../services/splitFeedback';
 import { useIsOffline } from '../services/useConnectivity';
@@ -75,6 +76,15 @@ export default function RecordScreen() {
 
   const estimate = useMemo(() => estimateClaim(rec.points), [rec.points]);
 
+  const finish = useCallback(async () => {
+    leaving.current = true;
+    const id = await useRecording.getState().finish();
+    if (id) router.replace({ pathname: '/summary/[id]', params: { id } });
+  }, []);
+
+  // Finishing from the Apple Watch goes through the same path.
+  useEffect(() => registerRemoteFinish(finish), [finish]);
+
   if (!rec.session) return null;
   const type = rec.session.type;
   const paused = rec.status === 'paused';
@@ -83,12 +93,6 @@ export default function RecordScreen() {
   const bigColor = paused ? colors.text2 : colors.text;
   const sig = SIGNAL[signal];
   const sigColor = signal === 'good' || signal === 'fair' ? colors.ok : colors.warn;
-
-  const finish = async () => {
-    leaving.current = true;
-    const id = await rec.finish();
-    if (id) router.replace({ pathname: '/summary/[id]', params: { id } });
-  };
 
   const cancel = () =>
     Alert.alert('Kayıt silinsin mi?', 'Bu aktivitenin rotası ve süresi kalıcı olarak silinir.', [

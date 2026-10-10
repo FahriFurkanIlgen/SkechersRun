@@ -20,6 +20,7 @@ import { health } from '../services/health';
 import { handleNotificationTaps, syncPushToken } from '../services/push';
 import { syncLocalReminders } from '../services/reminders';
 import { syncPending } from '../services/syncService';
+import { startWatchLink } from '../services/watch';
 import { useAuth } from '../state/authStore';
 import { useRecording } from '../state/recordingStore';
 import { useSettings } from '../state/settingsStore';
@@ -67,6 +68,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (!ready) return;
     return handleNotificationTaps();
+  }, [ready]);
+
+  // Apple Watch: mirror the phone recording, take its commands, import its workouts.
+  useEffect(() => {
+    if (!ready) return;
+    return startWatchLink();
   }, [ready]);
 
   // Flush the upload outbox when signed in, when coming online and on foreground.
