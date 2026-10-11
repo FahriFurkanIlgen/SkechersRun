@@ -32,6 +32,12 @@ interface SettingsState {
   hapticFeedback: boolean;
   /** Partner (sponsored) content. Off unless the user opts in. */
   partnerContent: boolean;
+  /**
+   * Account the on-device data (activities, privacy zones, profile fields)
+   * belongs to. null = never tied to an account (local-only use);
+   * 'legacy' = installed before this was tracked, decided at next sign-in.
+   */
+  dataOwnerId: string | null;
   /** User granted health platform access (Apple Health / Health Connect) from Runner. */
   healthConnected: boolean;
   /** Write saved Runner activities to the health platform. */
@@ -60,6 +66,7 @@ const defaults = {
   partnerContent: false,
   healthConnected: false,
   healthExport: false,
+  dataOwnerId: null as string | null,
   notificationPrefs: {
     enabled: true,
     movementReminders: true,
@@ -80,10 +87,10 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'runner.settings',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => Storage),
       // v1 → v2: new preferences get their defaults. v2 → v3: Apple Health flags became platform-neutral.
-      migrate: (persisted) => {
+      migrate: (persisted, version) => {
         const { appleHealthConnected, appleHealthExport, ...rest } = (persisted ?? {}) as {
           appleHealthConnected?: boolean;
           appleHealthExport?: boolean;
@@ -95,6 +102,8 @@ export const useSettings = create<SettingsState>()(
           ...(appleHealthExport != null ? { healthExport: appleHealthExport } : {}),
           ...rest,
           notificationPrefs: { ...defaults.notificationPrefs, ...(rest.notificationPrefs ?? {}) },
+          // v3 → v4: data owner unknown for existing installs.
+          ...(version < 4 ? { dataOwnerId: 'legacy' } : {}),
         };
       },
       partialize: ({ set: _s, reset: _r, ...rest }) => rest,

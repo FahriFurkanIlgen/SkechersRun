@@ -2,8 +2,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { activityRepo } from '../../data/local/activityRepo';
 import { privacyZoneRepo } from '../../data/local/privacyZoneRepo';
 import {
+  countOwnActivities,
   deleteMyAccount,
   deleteMyLocationData,
+  fetchMyPrivacyZones,
   fetchMyProfile,
   syncPrivacyZones,
   updateMyProfile,
@@ -28,6 +30,46 @@ export interface ProfilePatch {
 
 function userId(): string | null {
   return useAuth.getState().session?.user.id ?? null;
+}
+
+async function pullProfile(uid: string) {
+  const remote = await fetchMyProfile(uid).catch(() => null);
+  if (!remote) return;
+  useSettings.getState().set({
+    username: remote.username,
+    avatarUri: remote.avatarUrl,
+    preferredActivity: remote.preferredActivity,
+    level: remote.level,
+    profileVisibility: remote.profileVisibility,
+    defaultActivityVisibility: remote.defaultActivityVisibility,
+    showInLeaderboards: remote.showInLeaderboards,
+  });
+}
+
+/**
+ * Installs from before data ownership was tracked: the local data is this
+ * account's if every uploaded activity on the device is this account's.
+ * Without uploaded activities there is nothing to tell, so it is adopted.
+ */
+async function inferLegacyOwner(uid: string): Promise<string | null | undefined> {
+  const remoteIds = (await activityRepo.listSaved()).map((a) => a.remoteId).filter((id): id is string => !!id);
+  if (remoteIds.length === 0) return null;
+  try {
+    return (await countOwnActivities(uid, remoteIds)) === remoteIds.length ? uid : 'another-account';
+  } catch {
+    // Cannot check (offline): decide later; uploads stay paused until then.
+    return undefined;
+  }
+}
+
+/** Removes the previous account's data from this device; device preferences (units, theme…) stay. */
+async function clearAccountData() {
+  await activityRepo.deleteEverything();
+  useSettings.getState().set({
+    username: '',
+    avatarUri: null,
+    weeklyGoalKm: null,
+  });
 }
 
 export const profileActions = {
@@ -58,15 +100,37 @@ export const profileActions = {
     return true;
   },
 
-  /** After sign-in: pull the server profile, or push the locally entered one. */
+  /**
+   * After sign-in (or app start with a session). On-device data belongs to one
+   * account at a time (settings.dataOwnerId):
+   *  - never tied to an account (local-only use) → adopted by this account;
+   *  - same account → profile refreshed from the server;
+   *  - another account → that account's local data is removed first, so it is
+   *    never shown under, or uploaded to, the account that just signed in.
+   * Uploads (syncService) wait until this has set the owner.
+   */
   async reconcileAfterSignIn() {
     const uid = userId();
     if (!uid) return;
-    const remote = await fetchMyProfile(uid);
+    const settings = useSettings.getState();
+    let owner = settings.dataOwnerId;
+    if (owner === 'legacy') {
+      const inferred = await inferLegacyOwner(uid);
+      if (inferred === undefined) return;
+      owner = inferred;
+    }
+    if (owner === uid && settings.dataOwnerId === uid) {
+      await pullProfile(uid);
+      return;
+    }
+    const adopting = owner === null;
+    if (!adopting && owner !== uid) await clearAccountData();
+    useSettings.getState().set({ dataOwnerId: uid });
+
+    const remote = await fetchMyProfile(uid).catch(() => null);
     const local = useSettings.getState();
-    if (!remote) return;
     // Server generated a placeholder username on sign-up: replace it with the local choice.
-    if (remote.username.startsWith('runner_') && local.username && !validateUsername(local.username)) {
+    if (adopting && remote?.username.startsWith('runner_') && local.username && !validateUsername(local.username)) {
       await updateMyProfile(uid, {
         username: local.username,
         preferredActivity: local.preferredActivity,
@@ -74,20 +138,22 @@ export const profileActions = {
         profileVisibility: local.profileVisibility,
         defaultActivityVisibility: local.defaultActivityVisibility,
         showInLeaderboards: local.showInLeaderboards,
-      }).catch(() => undefined);
+        // e.g. the name is taken by another account: show the server profile instead.
+      }).catch(() => pullProfile(uid));
     } else {
-      local.set({
-        username: remote.username,
-        avatarUri: remote.avatarUrl ?? local.avatarUri,
-        preferredActivity: remote.preferredActivity,
-        level: remote.level,
-        profileVisibility: remote.profileVisibility,
-        defaultActivityVisibility: remote.defaultActivityVisibility,
-        showInLeaderboards: remote.showInLeaderboards,
-      });
+      await pullProfile(uid);
     }
-    await syncPrivacyZones(await privacyZoneRepo.list()).catch(() => undefined);
+    if (adopting) {
+      await syncPrivacyZones(await privacyZoneRepo.list()).catch(() => undefined);
+    } else {
+      await privacyZoneRepo.replaceAll(await fetchMyPrivacyZones()).catch(() => undefined);
+    }
     await saveRemoteNotificationPrefs(uid, local.notificationPrefs, null).catch(() => undefined);
+  },
+
+  /** Unsynced activities that would be lost if another account signs in on this device. */
+  async pendingUploadCount(): Promise<number> {
+    return (await activityRepo.listPendingUpload()).length;
   },
 
   /** Deletes raw GPS routes and territory on the server and on this device. Stats remain. */

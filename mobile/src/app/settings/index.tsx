@@ -60,6 +60,21 @@ export default function Settings() {
       { text: 'Sil', style: 'destructive', onPress: () => run(action) },
     ]);
 
+  // Another account signing in on this device removes this account's local data;
+  // warn if some of it has not reached the server yet.
+  const signOut = async () => {
+    const pending = await profileActions.pendingUploadCount();
+    if (pending === 0) return useAuth.getState().signOut();
+    Alert.alert(
+      'Yüklenmemiş aktiviteler var',
+      `${pending} aktivite henüz sunucuya yüklenmedi. Çıkış yapıp bu cihazda başka bir hesapla girersen bu aktiviteler silinir. Aynı hesapla tekrar girersen yüklenmeye devam eder.`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Çıkış yap', style: 'destructive', onPress: () => run(() => useAuth.getState().signOut()) },
+      ],
+    );
+  };
+
   const n = s.notificationPrefs;
 
   return (
@@ -207,7 +222,7 @@ export default function Settings() {
         {session ? (
           <>
             <NavRow label="E-posta" value={session.user.email ?? ''} />
-            <NavRow label="Çıkış yap" onPress={() => run(() => useAuth.getState().signOut())} last />
+            <NavRow label="Çıkış yap" onPress={() => run(signOut)} last />
           </>
         ) : backendConfigured ? (
           <NavRow label="Giriş yap / hesap oluştur" onPress={() => router.push('/auth')} last />

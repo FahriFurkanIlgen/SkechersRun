@@ -91,6 +91,30 @@ export async function syncPrivacyZones(zones: PrivacyZone[]) {
   if (error) throw new Error(error.message);
 }
 
+/** The signed-in user's privacy zones as stored on the server (centres already jittered). */
+export async function fetchMyPrivacyZones(): Promise<PrivacyZone[]> {
+  const { data, error } = await requireSupabase().rpc('my_privacy_zones');
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as { id: string; label: string; lat: number; lng: number; radius_m: number }[]).map((z) => ({
+    id: z.id,
+    label: z.label,
+    center: { latitude: z.lat, longitude: z.lng },
+    radiusM: z.radius_m,
+  }));
+}
+
+/** Which of these server activities belong to `userId` (others' private ones are simply not returned). */
+export async function countOwnActivities(userId: string, remoteIds: string[]): Promise<number> {
+  if (remoteIds.length === 0) return 0;
+  const { count, error } = await requireSupabase()
+    .from('activities')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('id', remoteIds);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 export async function deleteMyLocationData() {
   const { error } = await requireSupabase().rpc('delete_my_location_data');
   if (error) throw new Error(error.message);

@@ -28,6 +28,23 @@ export const privacyZoneRepo = {
     );
   },
 
+  async replaceAll(zones: PrivacyZone[]): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM privacy_zones`);
+      for (const z of zones) {
+        await db.runAsync(
+          `INSERT INTO privacy_zones (id, label, lat, lng, radius_m) VALUES (?, ?, ?, ?, ?)`,
+          z.id,
+          z.label,
+          z.center.latitude,
+          z.center.longitude,
+          z.radiusM,
+        );
+      }
+    });
+  },
+
   async remove(id: string): Promise<void> {
     const db = await getDb();
     await db.runAsync(`DELETE FROM privacy_zones WHERE id = ?`, id);

@@ -1,4 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { create } from 'zustand';
@@ -11,6 +13,8 @@ interface AuthState {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, username: string) => Promise<{ needsConfirmation: boolean }>;
   signInWithProvider: (provider: 'apple' | 'google') => Promise<void>;
+  /** Native Sign in with Apple (iOS). Resolves false if the user cancelled. */
+  signInWithApple: () => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -63,6 +67,32 @@ export const useAuth = create<AuthState>((set) => ({
     if (!code) throw new Error('Giriş tamamlanamadı.');
     const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code);
     if (exchangeError) throw new Error(exchangeError.message);
+  },
+
+  /**
+   * Sign in with Apple via the system sheet, then exchange Apple's identity
+   * token for a Supabase session. Needs the Apple provider enabled in
+   * Supabase with the app's bundle id as an authorized client id.
+   */
+  signInWithApple: async () => {
+    const sb = requireSupabase();
+    // Apple receives only the hash; Supabase checks the raw value against it.
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+    let credential: AppleAuthentication.AppleAuthenticationCredential;
+    try {
+      credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL],
+        nonce: hashedNonce,
+      });
+    } catch (e) {
+      if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
+      throw e;
+    }
+    if (!credential.identityToken) throw new Error('Apple kimlik bilgisi alınamadı.');
+    const { error } = await sb.auth.signInWithIdToken({ provider: 'apple', token: credential.identityToken, nonce: rawNonce });
+    if (error) throw new Error(error.message);
+    return true;
   },
 
   signOut: async () => {

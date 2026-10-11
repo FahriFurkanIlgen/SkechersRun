@@ -89,8 +89,16 @@ kimliğini `xcodebuild` parametresiyle ezmek yerine `APP_BUNDLE_ID` ve `APPLE_TE
    npx supabase db push
    ```
    (veya `supabase/migrations/*.sql` dosyalarını sırayla SQL Editor'da çalıştır)
-3. **Auth → URL Configuration**: `runner://auth-callback` adresini Redirect URL'lere ekle.
-4. Apple/Google girişi için Auth → Providers altında sağlayıcıları yapılandır ve `EXPO_PUBLIC_OAUTH_PROVIDERS`'a ekle.
+3. **Auth → URL Configuration**: Site URL `runner://auth-callback`, Redirect URLs `runner://**`. Kayıt doğrulama
+   e-postasındaki bağlantı telefonda açılınca uygulama otomatik giriş yapar; başka cihazda açılırsa hesap yine doğrulanır,
+   uygulamada e-posta/şifreyle giriş yapılır.
+4. Sosyal giriş (`EXPO_PUBLIC_OAUTH_PROVIDERS=apple,google`):
+   - **Apple** (iOS, yerel "Sign in with Apple"): Auth → Providers → Apple'ı aç, **Client IDs** alanına iOS paket kimliğini
+     yaz (ör. `com.furkanilgen.runner`). Yerel akışta gizli anahtar gerekmez. Uygulamada `usesAppleSignIn` yetkisi açık.
+   - **Google** (tarayıcı tabanlı OAuth, iOS ve Android): Google Cloud'da OAuth onay ekranı + **Web application** istemcisi
+     oluştur; Authorized redirect URI olarak `https://<ref>.supabase.co/auth/v1/callback` ekle. Client ID ve Secret'ı
+     Supabase'te Google sağlayıcısına gir. Onay ekranı "Testing" modundayken yalnızca test kullanıcıları giriş yapabilir;
+     herkese açmak için Google Cloud → Audience → **Publish app** (yalnızca e-posta/profil kapsamları için doğrulama gerekmez).
 5. İsteğe bağlı: ham GPS noktalarını 30 gün sonra silmek için `pg_cron` ile `select public.purge_old_route_points(30);` zamanla.
 
 ### Push bildirimleri
@@ -107,6 +115,18 @@ kimliğini `xcodebuild` parametresiyle ezmek yerine `APP_BUNDLE_ID` ve `APPLE_TE
 
 Uygulama, giriş yapıldığında ve bildirim tercihleri değiştiğinde cihaz token'ını `notification_prefs.push_token`'a yazar;
 bildirime dokununca ilgili ekran açılır. Mesaj metinlerinin testleri: `node --test supabase/functions/send-push/messages.test.ts`.
+
+### Uçtan uca API testi
+
+Uygulamanın sunucuya yaptığı çağrıları (kayıt, profil, gizli bölgeler, aktivite yükleme, hücreler, akış, sıralama,
+yeniden giriş, iki hesap arasında izolasyon) yerel Supabase'de sırayla dener. Yalnızca yerel adreste çalışır; test
+kullanıcılarını oluşturup siler. `supabase/config.toml` içindeki `auto_expose_new_tables = false`, bulut projesindeki
+gibi açık izin (GRANT) gerektirir; eksik izinler bu testte görünür.
+
+```bash
+supabase start
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=<supabase status çıktısındaki ANON_KEY> node supabase/tests/e2e/api_flow.mjs
+```
 
 ### SQL testleri
 

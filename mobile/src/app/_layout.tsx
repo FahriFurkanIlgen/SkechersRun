@@ -15,12 +15,13 @@ import { useEffect, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getDb } from '../data/local/db';
+import { profileActions } from '../features/profile/profileActions';
 import { AnimatedSplash } from '../features/splash/AnimatedSplash';
 import { health } from '../services/health';
 import { handleNotificationTaps, syncPushToken } from '../services/push';
 import { syncLocalReminders } from '../services/reminders';
 import { syncPending } from '../services/syncService';
-import { startWatchLink } from '../services/watch';
+import { refreshWatchStats, startWatchLink } from '../services/watch';
 import { useAuth } from '../state/authStore';
 import { useRecording } from '../state/recordingStore';
 import { useSettings } from '../state/settingsStore';
@@ -43,6 +44,7 @@ export default function RootLayout() {
     InstrumentSans_700Bold,
   });
   const session = useAuth((s) => s.session);
+  const sessionUserId = session?.user.id ?? null;
   const notificationPrefs = useSettings((s) => s.notificationPrefs);
   const { colors, dark } = useTheme();
 
@@ -76,17 +78,25 @@ export default function RootLayout() {
     return startWatchLink();
   }, [ready]);
 
-  // Flush the upload outbox when signed in, when coming online and on foreground.
+  // On sign-in (and app start with a session): make the on-device data this
+  // account's — adopt, refresh or clear it — then flush the upload outbox. Also
+  // flush when coming online and on foreground.
   useEffect(() => {
-    if (!ready || !session) return;
-    void syncPending();
+    if (!ready || !sessionUserId) return;
+    void profileActions
+      .reconcileAfterSignIn()
+      .catch(() => undefined)
+      .then(() => {
+        refreshWatchStats();
+        return syncPending();
+      });
     const net = addNetworkStateListener((s) => s.isInternetReachable && void syncPending());
     const app = AppState.addEventListener('change', (s) => s === 'active' && void syncPending());
     return () => {
       net.remove();
       app.remove();
     };
-  }, [ready, session]);
+  }, [ready, sessionUserId]);
 
   // Fonts failing to load must not block the app; system fonts are the fallback.
   const show = ready && (fontsLoaded || !!fontError);

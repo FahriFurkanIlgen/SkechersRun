@@ -1,10 +1,13 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { Banner, Button, Field, Screen, Segmented, Txt } from '../components/ui';
 import { backendConfigured, oauthProviders } from '../data/remote/supabase';
 import { normalizeUsername, profileActions, validateUsername } from '../features/profile/profileActions';
 import { useAuth } from '../state/authStore';
 import { useSettings } from '../state/settingsStore';
+import { useTheme } from '../theme/theme';
 
 export default function Auth() {
   const auth = useAuth();
@@ -16,6 +19,12 @@ export default function Auth() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const { dark } = useTheme();
+  // Native Sign in with Apple on iOS; elsewhere Apple would need the web flow and a services id.
+  const [appleNative, setAppleNative] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'ios' && oauthProviders.includes('apple')) void AppleAuthentication.isAvailableAsync().then(setAppleNative);
+  }, []);
 
   if (!backendConfigured) {
     return (
@@ -27,8 +36,8 @@ export default function Auth() {
     );
   }
 
+  // Profile and on-device data are reconciled by the root layout when the session changes.
   const done = async () => {
-    await profileActions.reconcileAfterSignIn().catch(() => undefined);
     router.back();
   };
 
@@ -48,13 +57,28 @@ export default function Auth() {
       } else {
         useSettings.getState().set({ username });
         const { needsConfirmation } = await auth.signUpWithEmail(email.trim(), password, username);
-        if (needsConfirmation) setInfo('E-postana gelen bağlantıyla hesabını doğrula, sonra giriş yap.');
+        if (needsConfirmation) {
+          // The e-mail and password stay filled in, so signing in after confirming is one tap.
+          setMode('signin');
+          setInfo(
+            'E-postana bir doğrulama bağlantısı gönderdik. Bağlantıyı bu telefonda açarsan otomatik giriş yaparsın; bilgisayarda açtıysan doğruladıktan sonra burada “Giriş yap”a dokun.',
+          );
+        }
         else await done();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const apple = async () => {
+    setError(null);
+    try {
+      if (await auth.signInWithApple()) await done();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -95,14 +119,20 @@ export default function Auth() {
       {info ? <Banner tone="info">{info}</Banner> : null}
       <Button label={mode === 'signup' ? 'Kayıt ol' : 'Giriş yap'} size="lg" loading={busy} onPress={() => void submit()} />
 
-      {oauthProviders.includes('apple') ? (
-        <Button label="Apple ile devam et" variant="secondary" onPress={() => void provider('apple')} />
+      {appleNative ? (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+          buttonStyle={dark ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={26}
+          style={{ height: 52 }}
+          onPress={() => void apple()}
+        />
       ) : null}
       {oauthProviders.includes('google') ? (
         <Button label="Google ile devam et" variant="secondary" onPress={() => void provider('google')} />
       ) : null}
       {oauthProviders.length === 0 ? (
-        <Txt variant="caption" muted>Apple ve Google ile giriş, Supabase’de sağlayıcılar etkinleştirilince açılır.</Txt>
+        <Txt variant="caption" muted>Apple ve Google ile giriş, sağlayıcılar sunucuda etkinleştirilince açılır.</Txt>
       ) : null}
     </Screen>
   );

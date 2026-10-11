@@ -15,6 +15,8 @@ const config: ExpoConfig = {
     // Signing team for device builds (Apple Developer team ID).
     appleTeamId: process.env.APPLE_TEAM_ID,
     supportsTablet: false,
+    // Sign in with Apple (expo-apple-authentication) adds the entitlement.
+    usesAppleSignIn: true,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -56,6 +58,7 @@ const config: ExpoConfig = {
     ],
     'expo-sqlite',
     'expo-web-browser',
+    'expo-apple-authentication',
     [
       'expo-location',
       {

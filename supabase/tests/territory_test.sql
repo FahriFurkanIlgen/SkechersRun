@@ -308,3 +308,13 @@ select test.assert((select a.source = 'runner_watch' and a.status = 'accepted'
   from public.activities a where a.id = (select (res ->> 'activity_id')::uuid from r where name = 'b_watch')),
   'workout recorded by the Runner watch app is accepted with its source');
 reset role;
+
+-- 0008: own privacy zones readable as coordinates, nobody else's.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select public.set_privacy_zones('[{"label":"Ev","lat":41.2,"lng":29.2,"radius_m":300}]'::jsonb);
+select test.assert((select count(*) = 1 and bool_and(abs(lat - 41.2) < 0.01 and radius_m >= 300) from public.my_privacy_zones()),
+  'my_privacy_zones returns own zone near the real centre');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+select test.assert((select count(*) = 0 from public.my_privacy_zones() where label = 'Ev'), 'other users zones are not returned');
+reset role;

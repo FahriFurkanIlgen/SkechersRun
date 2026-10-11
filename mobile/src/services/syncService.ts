@@ -16,8 +16,13 @@ export function canSync(): boolean {
   return backendConfigured && !!useAuth.getState().session;
 }
 
+/** Local data must belong to the signed-in account before anything is uploaded (profileActions.reconcileAfterSignIn). */
+function ownsLocalData(): boolean {
+  return useSettings.getState().dataOwnerId === useAuth.getState().session?.user.id;
+}
+
 async function run(): Promise<number> {
-  if (!canSync()) return 0;
+  if (!canSync() || !ownsLocalData()) return 0;
   const net = await Network.getNetworkStateAsync();
   if (net.isInternetReachable === false || net.isConnected === false) return 0;
 
