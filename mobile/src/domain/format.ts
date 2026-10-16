@@ -83,9 +83,10 @@ export const ACTIVITY_LABEL: Record<ActivityType, string> = {
   walk: 'Yürüyüş',
   run: 'Koşu',
   ride: 'Bisiklet',
+  wheelchair: 'Tekerlekli sandalye',
 };
 
-const SOURCE_LABEL = { phone: 'Telefon', apple_health: 'Apple Sağlık', health_connect: 'Health Connect', runner_watch: 'Apple Watch' } as const;
+const SOURCE_LABEL = { phone: 'Telefon', apple_health: 'Apple Sağlık', health_connect: 'Health Connect', runner_watch: 'Apple Watch', strava: 'Strava' } as const;
 
 /** Where an imported activity came from ("Apple Watch", "Garmin Forerunner"…); null for phone recordings. */
 export function sourceLabel(a: Pick<Activity, 'source' | 'sourceDevice'>): string | null {

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useCallback } from 'react';
 import { ConnectionBanner } from '../components/StatusBanners';
 import { Button, EmptyState, Group, Loading, NavRow, Screen } from '../components/ui';
@@ -14,11 +15,15 @@ function describe(n: AppNotification): string {
     case 'territory_gained':
       return `+${cells} kazandın`;
     case 'territory_lost':
-      return `${cells} başka bir oyuncuya geçti`;
+      return n.payload.reason === 'decay'
+        ? `${cells} uzun süre uğramadığın için boşaldı`
+        : `${cells} başka bir oyuncuya geçti`;
     case 'follow_request':
       return 'Yeni takip isteği';
     case 'new_follower':
       return 'Yeni bir takipçin var';
+    case 'live_share':
+      return `${String(n.payload.username ?? 'Bir arkadaşın')} canlı konumunu seninle paylaşıyor`;
     case 'club_invite':
       return `“${String(n.payload.club_name ?? '')}” kulübüne davet edildin`;
   }
@@ -52,6 +57,8 @@ export default function Inbox() {
               right={
                 n.kind === 'follow_request' ? (
                   <Button label="Onayla" variant="secondary" size="sm" onPress={() => void respondFollow(String(n.payload.user_id), true).then(reload)} />
+                ) : n.kind === 'live_share' && n.payload.share_id ? (
+                  <Button label="Gör" variant="secondary" size="sm" onPress={() => router.push({ pathname: '/live/[id]', params: { id: String(n.payload.share_id) } })} />
                 ) : n.kind === 'club_invite' ? (
                   <Button label="Katıl" variant="secondary" size="sm" onPress={() => void joinClub({ code: String(n.payload.invite_code) }).then(reload)} />
                 ) : undefined

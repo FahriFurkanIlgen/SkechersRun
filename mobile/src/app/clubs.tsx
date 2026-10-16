@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Share } from 'react-native';
 import { ConnectionBanner } from '../components/StatusBanners';
@@ -49,6 +50,7 @@ export default function Clubs() {
                   label={c.name}
                   sub={`${c.memberCount} üye${c.isMember && c.inviteCode ? ` · Kod: ${c.inviteCode}` : ''}${c.description ? ` · ${c.description}` : ''}`}
                   last={i === items.length - 1}
+                  onPress={() => router.push({ pathname: '/club/[id]', params: { id: c.id } })}
                   right={
                     c.isMember ? (
                       c.ownerId === myId ? (

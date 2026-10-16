@@ -16,6 +16,7 @@ import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getDb } from '../data/local/db';
 import { profileActions } from '../features/profile/profileActions';
+import { AccountSyncBanner } from '../components/AccountSyncBanner';
 import { AnimatedSplash } from '../features/splash/AnimatedSplash';
 import { health } from '../services/health';
 import { handleNotificationTaps, syncPushToken } from '../services/push';
@@ -136,12 +137,19 @@ export default function RootLayout() {
           <Stack.Screen name="inbox" options={{ title: 'Bildirimler' }} />
           <Stack.Screen name="people" options={{ title: 'Arkadaş bul' }} />
           <Stack.Screen name="clubs" options={{ title: 'Kulüpler' }} />
+          <Stack.Screen name="district" options={{ title: 'İlçe takımın' }} />
+          <Stack.Screen name="club/[id]" options={{ title: 'Kulüp' }} />
+          <Stack.Screen name="live-contacts" options={{ title: 'Canlı konum paylaşımı' }} />
+          <Stack.Screen name="live/[id]" options={{ title: 'Canlı konum' }} />
           <Stack.Screen name="how-it-works" options={{ title: 'Oyun kuralları' }} />
+          <Stack.Screen name="import-strava" options={{ title: 'Strava’dan aktar' }} />
+          <Stack.Screen name="strava-callback" options={{ headerShown: false }} />
           <Stack.Screen name="import-health" options={{ title: health ? `${health.nameFrom} aktar` : 'Antrenman aktar' }} />
         </Stack>
       ) : (
         <View style={{ flex: 1, backgroundColor: colors.bg }} />
       )}
+      {show ? <AccountSyncBanner /> : null}
       {!splashDone ? (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onLayout={() => void SplashScreen.hideAsync().catch(() => undefined)}>
           <AnimatedSplash

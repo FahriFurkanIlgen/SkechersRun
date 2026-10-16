@@ -129,6 +129,101 @@ export const activityRepo = {
     );
   },
 
+  /** Remote ids and client ids already on this device (to skip when restoring from the server). */
+  async knownIds(): Promise<Set<string>> {
+    const db = await getDb();
+    const rows = await db.getAllAsync<{ id: string; remote_id: string | null }>(`SELECT id, remote_id FROM activities`);
+    const ids = new Set<string>();
+    for (const r of rows) {
+      ids.add(r.id);
+      if (r.remote_id) ids.add(r.remote_id);
+    }
+    return ids;
+  },
+
+  /** Stores activities downloaded from the server as saved, already-synced activities (no points yet). */
+  async insertRestored(
+    list: {
+      id: string;
+      remoteId: string;
+      type: ActivityType;
+      title: string;
+      visibility: Visibility;
+      routeShare: RouteShare;
+      source: ActivitySource;
+      externalId: string | null;
+      sourceDevice: string | null;
+      startedAt: number;
+      endedAt: number;
+      movingTimeS: number;
+      distanceM: number;
+      claim: ClaimResult;
+    }[],
+  ): Promise<void> {
+    if (list.length === 0) return;
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      for (const a of list) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO activities (id, remote_id, type, title, visibility, route_share, source, external_id,
+             source_device, status, started_at, ended_at, moving_time_s, distance_m, estimated_cells, sync_state, claim_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved', ?, ?, ?, ?, ?, ?, ?)`,
+          a.id,
+          a.remoteId,
+          a.type,
+          a.title,
+          a.visibility,
+          a.routeShare,
+          a.source,
+          a.externalId,
+          a.sourceDevice,
+          a.startedAt,
+          a.endedAt,
+          a.movingTimeS,
+          a.distanceM,
+          a.claim.claimedCells,
+          a.claim.status === 'accepted' ? 'uploaded' : 'rejected',
+          JSON.stringify(a.claim),
+        );
+      }
+    });
+  },
+
+  /**
+   * Route points and best efforts for restored activities, written with
+   * multi-row inserts (one statement per few hundred points instead of one
+   * per point) in a single transaction.
+   */
+  async insertRestoredPoints(
+    items: { id: string; points: RoutePoint[]; best5kS: number | null; best10kS: number | null }[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+    const db = await getDb();
+    const ROWS = 300; // 9 params per row, well under SQLite's variable limit
+    await db.withTransactionAsync(async () => {
+      for (const item of items) {
+        for (let i = 0; i < item.points.length; i += ROWS) {
+          const chunk = item.points.slice(i, i + ROWS);
+          const params: (string | number | null)[] = [];
+          for (const p of chunk) {
+            params.push(item.id, p.seq, p.segment, p.latitude, p.longitude, p.accuracy, p.altitude, p.speed, p.timestamp);
+          }
+          await db.runAsync(
+            `INSERT OR IGNORE INTO route_points (activity_id, seq, segment, lat, lng, accuracy, altitude, speed, ts, mocked)
+             VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, 0)').join(', ')}`,
+            params,
+          );
+        }
+        await db.runAsync(
+          `UPDATE activities SET best_5k_s = ?, best_10k_s = ? WHERE id = ?`,
+          item.best5kS,
+          item.best10kS,
+          item.id,
+        );
+      }
+    });
+  },
+
   async externalIds(...sources: ActivitySource[]): Promise<Set<string>> {
     const db = await getDb();
     const rows = await db.getAllAsync<{ external_id: string }>(

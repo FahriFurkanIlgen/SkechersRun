@@ -5,6 +5,7 @@ import { routeDistanceM } from '../domain/metrics';
 import type { ActivityType, RoutePoint, Visibility } from '../domain/types';
 import { subscribeIngest, subscribeTrackingErrors } from '../services/location/ingest';
 import { readSession, type RecordingSession } from '../services/location/recordingSession';
+import { endLiveShare } from '../services/liveShare';
 import { trackingService } from '../services/location/trackingService';
 
 type Status = 'idle' | 'starting' | 'recording' | 'paused' | 'finishing';
@@ -96,12 +97,14 @@ export const useRecording = create<RecordingState>((set, get) => {
 
     finish: async () => {
       set({ status: 'finishing' });
+      void endLiveShare().catch(() => undefined);
       const id = await trackingService.finish();
       set({ status: 'idle', session: null, points: [], distanceM: 0, lastFix: null });
       return id;
     },
 
     cancel: async () => {
+      void endLiveShare().catch(() => undefined);
       await trackingService.cancel();
       set({ status: 'idle', session: null, points: [], distanceM: 0, lastFix: null });
     },

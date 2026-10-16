@@ -1,8 +1,9 @@
-import { haversineM, ringAreaM2, simplify } from '../geo';
+import { haversineM, pathLengthM, ringAreaM2, simplify } from '../geo';
 import { evaluateFix, signalQuality } from '../gpsFilter';
 import { bestEffortS, currentSpeedMps, routeDistanceM } from '../metrics';
 import { estimateClaim } from '../territory';
-import { cellAt, cellCenter, cellCenterMercator, cellRing } from '../hex';
+import { cellAt, cellCenter, cellCenterMercator, cellKey, cellRing, cellsInBounds, emptyCellsNear } from '../hex';
+import { compassName, ellipseLoop, suggestRoutes } from '../routeSuggest';
 import { formatDistance, formatDuration, formatPaceOrSpeed, formatArea, formatGoalDistance, sourceLabel } from '../format';
 import { removePointsInZones, suggestPrivacyZones, trimRouteEnds } from '../privacy';
 import { weeklyGoals, startOfWeek } from '../goals';
@@ -10,6 +11,7 @@ import { RULES } from '../rules';
 import { normalizeUsername } from '../username';
 import { routeFromExternalLocations } from '../importRoute';
 import { trackingErrorMessage } from '../trackingError';
+import { seasonDaysLeft, seasonRank } from '../season';
 import type { Activity } from '../types';
 import { routeFromOffsets, square } from './testRoutes';
 
@@ -234,5 +236,63 @@ describe('tracking errors', () => {
     expect(trackingErrorMessage('The operation couldn’t be completed. Error Domain=kCLErrorDomain Code=0 "(null)"')).toBeNull();
     expect(trackingErrorMessage('Error Domain=kCLErrorDomain Code=1 "(null)"')).toMatch(/Konum izni kapatıldı/);
     expect(trackingErrorMessage('Error Domain=kCLErrorDomain Code=10 "(null)"')).toMatch(/Konum alınamıyor/);
+  });
+});
+
+describe('nearby empty cells', () => {
+  it('lists unowned cells within the radius, nearest first', () => {
+    const here = { latitude: 40.99, longitude: 29.025 };
+    const all = emptyCellsNear(here, 1000, new Set());
+    expect(all.length).toBeGreaterThan(40);
+    expect(cellKey(all[0])).toBe(cellKey(cellAt(here)));
+    const owned = new Set([cellKey(all[0]), cellKey(all[1])]);
+    const rest = emptyCellsNear(here, 1000, owned);
+    expect(rest.length).toBe(all.length - 2);
+    expect(rest.some((c) => owned.has(cellKey(c)))).toBe(false);
+  });
+});
+
+describe('season ranks', () => {
+  it('maps points to tiers with progress to the next', () => {
+    expect(seasonRank(0)).toMatchObject({ tier: 'Çaylak', next: { tier: 'Bronz', remaining: 25 }, progress: 0 });
+    expect(seasonRank(50)).toMatchObject({ tier: 'Bronz', next: { tier: 'Gümüş', remaining: 25 }, progress: 0.5 });
+    expect(seasonRank(200).tier).toBe('Altın');
+    expect(seasonRank(5000)).toMatchObject({ tier: 'Efsane', next: null, progress: 1 });
+    expect(seasonRank(-3).tier).toBe('Çaylak');
+  });
+  it('counts whole days left', () => {
+    const now = Date.UTC(2026, 9, 16, 12);
+    expect(seasonDaysLeft(Date.UTC(2026, 10, 1), now)).toBe(16);
+    expect(seasonDaysLeft(now - 1, now)).toBe(0);
+  });
+});
+
+describe('route suggestions', () => {
+  const start = { latitude: 41.0, longitude: 29.0 };
+
+  it('ellipse loops start and end at the player with the requested length', () => {
+    const loop = ellipseLoop(start, 3000, 45, 2.2);
+    expect(haversineM(loop[0], start)).toBeLessThan(1);
+    expect(haversineM(loop[loop.length - 1], start)).toBeLessThan(1);
+    expect(Math.abs(pathLengthM(loop) - 3000)).toBeLessThan(60);
+  });
+
+  it('prefers the side with empty cells over the player’s own cells', () => {
+    // Own every cell east of the start; the best loop should head west.
+    const own = cellsInBounds({ latitude: 40.98, longitude: 29.0 }, { latitude: 41.02, longitude: 29.03 }).map((c) => ({
+      ...c,
+      ownerId: 'me',
+      username: 'me',
+      isMine: true,
+      weak: false,
+      protected: false,
+      landmark: null,
+    }));
+    const [best, ...rest] = suggestRoutes({ start, minutes: 25, type: 'walk', territories: own });
+    expect(best).toBeDefined();
+    expect(best.bearing).toBeGreaterThan(180);
+    expect(best.targets.length).toBeGreaterThan(0);
+    expect(rest.every((r) => r.score <= best.score)).toBe(true);
+    expect(compassName(270)).toBe('batı');
   });
 });

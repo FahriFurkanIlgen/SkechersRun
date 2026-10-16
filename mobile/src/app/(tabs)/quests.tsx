@@ -2,15 +2,20 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Icon } from '../../components/Icon';
-import { Button, Card, ProgressBar, ProgressRing, Screen, Txt } from '../../components/ui';
-import { formatGoalDistance } from '../../domain/format';
-import { daysLeftInWeek, defaultWeeklyGoalKm, weeklyGoals } from '../../domain/goals';
+import { Button, Card, ProgressBar, ProgressRing, Screen, Segmented, Txt } from '../../components/ui';
+import { daysLeftInWeek, defaultWeeklyGoalKm, defaultWeeklyGoalMinutes, formatGoalMinutes, weeklyGoals } from '../../domain/goals';
 import { useActivityHistory } from '../../features/activity/hooks';
 import { useWeeklyGoal } from '../../features/profile/hooks';
 import { useSettings } from '../../state/settingsStore';
 import { fonts, radius, useTheme } from '../../theme/theme';
 
 const GOAL_STEPS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
+const MINUTE_STEPS = [30, 45, 60, 90, 120, 150, 180, 240, 300, 420];
+
+function step(steps: number[], current: number, dir: 1 | -1): number {
+  const i = steps.findIndex((g) => g >= current);
+  return steps[Math.max(0, Math.min(steps.length - 1, (i === -1 ? steps.length - 1 : i) + dir))];
+}
 
 /** 09 Görevler ve iş ortaklığı alanı */
 export default function Quests() {
@@ -18,8 +23,8 @@ export default function Quests() {
   const { activities } = useActivityHistory();
   const goal = useWeeklyGoal(activities);
   const level = useSettings((s) => s.level);
-  const units = useSettings((s) => s.units);
   const goalKm = useSettings((s) => s.weeklyGoalKm) ?? defaultWeeklyGoalKm(level);
+  const goalMinutes = useSettings((s) => s.weeklyGoalMinutes) ?? defaultWeeklyGoalMinutes(level);
   const partnerContent = useSettings((s) => s.partnerContent);
   const set = useSettings((s) => s.set);
   const [editing, setEditing] = useState(false);
@@ -27,11 +32,10 @@ export default function Quests() {
   const pct = Math.round(Math.min(goal.ratio, 1) * 100);
   const days = daysLeftInWeek();
 
-  const stepGoal = (dir: 1 | -1) => {
-    const i = GOAL_STEPS.findIndex((g) => g >= goalKm);
-    const next = GOAL_STEPS[Math.max(0, Math.min(GOAL_STEPS.length - 1, (i === -1 ? GOAL_STEPS.length - 1 : i) + dir))];
-    set({ weeklyGoalKm: next });
-  };
+  const stepGoal = (dir: 1 | -1) =>
+    goal.kind === 'minutes'
+      ? set({ weeklyGoalMinutes: step(MINUTE_STEPS, goalMinutes, dir) })
+      : set({ weeklyGoalKm: step(GOAL_STEPS, goalKm, dir) });
 
   return (
     <Screen>
@@ -41,21 +45,32 @@ export default function Quests() {
       </View>
 
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-        <ProgressRing value={goal.ratio} size={72} stroke={8} label={`Haftalık mesafe hedefinin yüzde ${pct}’i tamam`}>
+        <ProgressRing value={goal.ratio} size={72} stroke={8} label={`Haftalık ${goal.kind === 'minutes' ? 'hareket süresi' : 'mesafe'} hedefinin yüzde ${pct}’i tamam`}>
           <Text style={{ fontFamily: fonts.display, fontSize: 16, color: colors.text }}>%{pct}</Text>
         </ProgressRing>
         <View style={{ flex: 1, gap: 4 }}>
           <Txt variant="heading">Haftalık hedef</Txt>
           <Txt variant="bodySm" muted>
-            {formatGoalDistance(goal.doneM, units)} / {formatGoalDistance(goal.targetM, units)}
+            {goal.format(goal.done)} / {goal.format(goal.target)}
           </Txt>
+          {editing ? (
+            <Segmented
+              label=""
+              value={goal.kind}
+              onChange={(v) => set({ weeklyGoalType: v })}
+              options={[
+                { value: 'distance', label: 'Mesafe' },
+                { value: 'minutes', label: 'Hareket süresi' },
+              ]}
+            />
+          ) : null}
           {editing ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
               <Pressable accessibilityRole="button" accessibilityLabel="Hedefi azalt" onPress={() => stepGoal(-1)} style={stepper(colors.border)}>
                 <Icon name="minus" size={20} color={colors.text} />
               </Pressable>
               <Text accessibilityLiveRegion="polite" style={{ fontFamily: fonts.display, fontSize: 20, color: colors.text, minWidth: 64, textAlign: 'center' }}>
-                {goalKm} km
+                {goal.kind === 'minutes' ? formatGoalMinutes(goalMinutes) : `${goalKm} km`}
               </Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Hedefi artır" onPress={() => stepGoal(1)} style={stepper(colors.border)}>
                 <Icon name="plus" size={20} color={colors.text} />

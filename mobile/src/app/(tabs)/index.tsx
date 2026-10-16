@@ -1,24 +1,34 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, StyleSheet, View } from 'react-native';
 import type MapView from 'react-native-maps';
+import { Polyline } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../../components/Icon';
-import { BaseMap, CellLayer, MapLegend } from '../../components/RouteMap';
+import { BaseMap, CellLayer, LandmarkMarkers, MapLegend } from '../../components/RouteMap';
 import { Button, IconButton, ProgressRing, Txt } from '../../components/ui';
-import { formatCells, formatGoalDistance } from '../../domain/format';
-import type { Region } from '../../domain/geo';
+import { formatCells, formatDistance } from '../../domain/format';
+import type { LatLng, Region } from '../../domain/geo';
+import { cellKey, emptyCellsNear } from '../../domain/hex';
+import { compassName, type RouteSuggestion } from '../../domain/routeSuggest';
 import { useActivityHistory } from '../../features/activity/hooks';
 import { useCurrentLocation, useTerritories, type TerritoryStatus } from '../../features/map/hooks';
 import { useRemoteStats, useWeeklyGoal } from '../../features/profile/hooks';
 import { openAppSettings, requestForegroundLocation } from '../../services/location/permissions';
+import { smartRoutes } from '../../services/smartRoute';
 import { useIsOffline } from '../../services/useConnectivity';
 import { useRecording } from '../../state/recordingStore';
 import { useSettings } from '../../state/settingsStore';
 import { fonts, radius, useTheme } from '../../theme/theme';
 
+/** Radius for the "boş hücre" suggestion around the player. */
+const OPPORTUNITY_RADIUS_M = 1000;
+
 // Shown only until the device reports a position (or when location is off).
 const FALLBACK_REGION: Region = { latitude: 41.015, longitude: 28.979, latitudeDelta: 0.08, longitudeDelta: 0.08 };
+
+/** Durations offered for a suggested loop, minutes. */
+const ROUTE_MINUTES = [20, 30, 45, 60];
 
 const TERRITORY_HINT: Partial<Record<TerritoryStatus, string>> = {
   zoom_in: 'Bölgeleri görmek için yakınlaştır',
@@ -34,10 +44,64 @@ export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
   const { access, position, refresh } = useCurrentLocation();
   const [region, setRegion] = useState<Region | null>(null);
+  // Region the map starts at. It is used as soon as the map is ready because
+  // react-native-maps reports a region only after the camera moves.
+  const [initialRegion] = useState<Region>(() =>
+    position ? { ...position, latitudeDelta: 0.02, longitudeDelta: 0.02 } : FALLBACK_REGION,
+  );
   const [showTerritories, setShowTerritories] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
-  const { territories, status, retry } = useTerritories(region);
+  // Tiles drawn (onMapLoaded). onMapReady fires earlier, while the map is still blank.
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [coverOpacity] = useState(() => new Animated.Value(1));
+  const [coverGone, setCoverGone] = useState(false);
+  const { territories, landmarks, status, retry } = useTerritories(region);
+  // Unclaimed cells within 1 km: a nudge towards where a run would gain the most.
+  const [showOpportunities, setShowOpportunities] = useState(false);
+  const opportunities = useMemo(
+    () =>
+      status === 'ready' && position ? emptyCellsNear(position, OPPORTUNITY_RADIUS_M, new Set(territories.map(cellKey))) : [],
+    [status, position, territories],
+  );
+  // Smart route: null = closed; otherwise the chosen duration and which option is shown.
+  const [routeMinutes, setRouteMinutes] = useState<number | null>(null);
+  const [routeIndex, setRouteIndex] = useState(0);
+  // Fixed when the card opens so GPS updates don't reshuffle the options.
+  const [routeStart, setRouteStart] = useState<LatLng | null>(null);
+  const activityType = useSettings((s) => s.preferredActivity);
+  // Cells as of when the request was made: the map refetches while it frames the loop,
+  // and recomputing then would reshuffle the options.
+  const routeInputs = useRef({ territories, landmarks });
+  useEffect(() => {
+    routeInputs.current = { territories, landmarks };
+  }, [territories, landmarks]);
+  const routeKey = routeMinutes !== null && routeStart ? `${routeMinutes}:${routeStart.latitude}:${routeStart.longitude}:${activityType}` : null;
+  const [routeResult, setRouteResult] = useState<{ key: string; list: RouteSuggestion[] } | null>(null);
+  useEffect(() => {
+    if (!routeKey || !routeStart || routeMinutes === null) return;
+    let cancelled = false;
+    void smartRoutes({ start: routeStart, minutes: routeMinutes, type: activityType, ...routeInputs.current })
+      .catch(() => [])
+      .then((list) => {
+        if (!cancelled) setRouteResult({ key: routeKey, list });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- routeKey covers start, minutes and type
+  }, [routeKey]);
+  const routeLoading = routeKey !== null && routeResult?.key !== routeKey;
+  const suggestions = !routeLoading && routeResult ? routeResult.list : [];
+  const suggestion = suggestions.length > 0 ? suggestions[routeIndex % suggestions.length] : null;
+  // Frame the loop when a different one is shown. Keyed on the loop itself: re-framing on every
+  // recompute would move the map, refetch cells and recompute again.
+  const fitKey = suggestion ? `${routeMinutes}:${suggestion.bearing}:${suggestion.points.length}:${suggestion.points[1].latitude}` : null;
+  const fitPoints = suggestion?.points;
+  useEffect(() => {
+    if (fitKey && fitPoints) mapRef.current?.fitToCoordinates(fitPoints, { edgePadding: { top: 160, right: 40, bottom: 340, left: 40 }, animated: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fitPoints changes with fitKey
+  }, [fitKey]);
   const { activities } = useActivityHistory();
   const goal = useWeeklyGoal(activities);
   const { stats } = useRemoteStats();
@@ -51,12 +115,35 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, [mapReady]);
 
+  // Some devices never report onMapLoaded (e.g. tiles cached); don't cover the map forever.
+  useEffect(() => {
+    if (!mapReady || mapLoaded) return;
+    const t = setTimeout(() => setMapLoaded(true), 4_000);
+    return () => clearTimeout(t);
+  }, [mapReady, mapLoaded]);
+
+  // Fade the cover out once the map is drawn (instantly with Reduce Motion).
+  useEffect(() => {
+    if (!(mapLoaded || mapTimedOut) || coverGone) return;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (cancelled) return;
+      Animated.timing(coverOpacity, { toValue: 0, duration: reduce ? 0 : 250, useNativeDriver: true }).start(() => setCoverGone(true));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mapLoaded, mapTimedOut, coverGone, coverOpacity]);
+
   // Center on the user once the first fix arrives.
   const centered = useRef(false);
   useEffect(() => {
     if (position && mapReady && !centered.current) {
       centered.current = true;
-      mapRef.current?.animateToRegion({ ...position, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 400);
+      const target = { ...position, latitudeDelta: 0.02, longitudeDelta: 0.02 };
+      mapRef.current?.animateToRegion(target, 400);
+      // No change event comes if the camera is already there; load cells for it now.
+      setRegion(target);
     }
   }, [position, mapReady]);
 
@@ -72,16 +159,52 @@ export default function MapScreen() {
       <BaseMap
         mapRef={mapRef}
         style={StyleSheet.absoluteFill}
-        initialRegion={position ? { ...position, latitudeDelta: 0.02, longitudeDelta: 0.02 } : FALLBACK_REGION}
+        initialRegion={initialRegion}
         showsUserLocation={!noPermission}
         // Keep the Apple/Google legal attribution visible above the bottom controls.
         mapPadding={{ top: 0, right: 0, bottom: 140, left: 0 }}
-        onMapReady={() => setMapReady(true)}
+        onMapReady={() => {
+          setMapReady(true);
+          setRegion((r) => r ?? initialRegion);
+        }}
+        onMapLoaded={() => setMapLoaded(true)}
         onRegionChangeComplete={(r) => setRegion(r)}
         accessibilityLabel="Çevrendeki oyun alanları: senin bölgelerin düz kenarlı, diğer oyuncuların bölgeleri kesikli kenarlı."
       >
-        {showTerritories ? <CellLayer cells={territories} region={region} /> : null}
+        {showTerritories ? (
+          <CellLayer
+            cells={territories}
+            region={region}
+            opportunities={suggestion ? suggestion.targets : showOpportunities ? opportunities : undefined}
+          />
+        ) : null}
+        {suggestion ? (
+          <Polyline
+            coordinates={suggestion.points}
+            strokeColor={colors.primary}
+            strokeWidth={suggestion.snapped ? 5 : 4}
+            lineDashPattern={suggestion.snapped ? undefined : [10, 8]}
+            lineCap="round"
+            lineJoin="round"
+          />
+        ) : null}
+        {showTerritories ? <LandmarkMarkers landmarks={landmarks} /> : null}
       </BaseMap>
+
+      {/* Light veil over the map until its tiles are drawn: the map stays visible and usable. */}
+      {!coverGone ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: coverOpacity, alignItems: 'center', justifyContent: 'center' }]}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, opacity: 0.45 }]} />
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="Harita yükleniyor"
+            style={[styles.chip, { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <ActivityIndicator color={colors.primary} />
+            <Txt variant="body" style={{ fontFamily: fonts.bodySemi }}>Harita yükleniyor…</Txt>
+          </View>
+        </Animated.View>
+      ) : null}
 
       {/* Weekly summary card */}
       <View style={[styles.summary, { top, backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -104,7 +227,7 @@ export default function MapScreen() {
             <View style={{ gap: 2, flexShrink: 1 }}>
               <Txt variant="caption" muted>Bu hafta</Txt>
               <Txt variant="heading" style={{ fontFamily: fonts.display, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
-                {formatGoalDistance(goal.doneM, units)} / {formatGoalDistance(goal.targetM, units)}
+                {goal.format(goal.done)} / {goal.format(goal.target)}
               </Txt>
             </View>
             <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: colors.border }} />
@@ -153,6 +276,50 @@ export default function MapScreen() {
             <Txt variant="bodySm" style={{ flex: 1 }}>Harita yüklenemedi. Aktivite kaydı haritasız da çalışır.</Txt>
           </View>
         ) : null}
+        {coverGone && showTerritories && status === 'loading' && territories.length === 0 && !offline ? (
+          <View accessibilityRole="progressbar" style={[styles.chip, { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Txt variant="bodySm" style={{ fontFamily: fonts.bodySemi }}>Hücreler yükleniyor…</Txt>
+          </View>
+        ) : null}
+        {coverGone && showTerritories && opportunities.length > 0 && !offline ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: showOpportunities }}
+            accessibilityLabel={`Yakınında ${opportunities.length} boş hücre. ${showOpportunities ? 'Gizlemek' : 'Haritada göstermek'} için dokun.`}
+            onPress={() => setShowOpportunities((v) => !v)}
+            style={[
+              styles.chip,
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                backgroundColor: showOpportunities ? colors.primarySoft : colors.surface,
+                borderColor: showOpportunities ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Icon name="hex" size={18} color={colors.primary} />
+            <Txt variant="bodySm" style={{ fontFamily: fonts.bodySemi }}>
+              {`Yakınında ${opportunities.length} boş hücre${showOpportunities ? ' · gizle' : ' · göster'}`}
+            </Txt>
+          </Pressable>
+        ) : null}
+        {coverGone && showTerritories && status === 'ready' && position && routeMinutes === null && !isRecording && !offline ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Akıllı rota öner: çevrende en çok hücre kazandıracak turu göster"
+            onPress={() => {
+              setRouteIndex(0);
+              setRouteStart(position);
+              setRouteMinutes(30);
+            }}
+            style={[styles.chip, { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Icon name="route" size={18} color={colors.primary} />
+            <Txt variant="bodySm" style={{ fontFamily: fonts.bodySemi }}>Rota öner</Txt>
+          </Pressable>
+        ) : null}
         {!offline && hint && showTerritories && !loading ? (
           <Pressable
             accessibilityRole={status === 'error' ? 'button' : 'text'}
@@ -164,12 +331,6 @@ export default function MapScreen() {
         ) : null}
       </View>
 
-      {loading ? (
-        <View accessibilityRole="progressbar" style={[styles.loading, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <ActivityIndicator color={colors.primary} />
-          <Txt variant="body" style={{ fontFamily: fonts.bodySemi }}>Harita yükleniyor…</Txt>
-        </View>
-      ) : null}
 
       {/* Bottom stack: permission card / legend / start */}
       <View style={{ position: 'absolute', left: 16, right: 16, bottom: tabGap, gap: 12 }} pointerEvents="box-none">
@@ -201,7 +362,73 @@ export default function MapScreen() {
             />
           </View>
         ) : null}
-        {!noPermission && !loading && showTerritories ? <MapLegend /> : null}
+        {routeMinutes !== null ? (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Icon name="route" size={22} color={colors.primary} />
+              <Txt variant="heading" style={{ flex: 1, fontSize: 17 }}>Akıllı rota</Txt>
+              <IconButton icon="close" size={40} label="Rota önerisini kapat" onPress={() => setRouteMinutes(null)} />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {ROUTE_MINUTES.map((m) => {
+                const on = m === routeMinutes;
+                return (
+                  <Pressable
+                    key={m}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={`${m} dakikalık tur`}
+                    onPress={() => {
+                      setRouteIndex(0);
+                      setRouteMinutes(m);
+                    }}
+                    style={{
+                      flex: 1,
+                      height: 40,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderColor: on ? colors.primary : colors.border,
+                      backgroundColor: on ? colors.primarySoft : colors.surface,
+                    }}
+                  >
+                    <Txt variant="bodySm" style={{ fontFamily: fonts.bodySemi }}>{`${m} dk`}</Txt>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {routeLoading ? (
+              <View accessibilityRole="progressbar" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <ActivityIndicator color={colors.primary} />
+                <Txt variant="bodySm" muted>Sokaklara göre rota hazırlanıyor…</Txt>
+              </View>
+            ) : suggestion ? (
+              <View accessible accessibilityLiveRegion="polite" style={{ gap: 4 }}>
+                <Txt variant="body" style={{ fontFamily: fonts.bodySemi }}>
+                  {`${formatDistance(suggestion.distanceM, units)} · ${compassName(suggestion.bearing)} yönüne tur · tahmini +${suggestion.targets.length} hücre`}
+                </Txt>
+                <Txt variant="caption" muted>
+                  {[
+                    suggestion.steals > 0 ? `${suggestion.steals} hücre rakipten` : null,
+                    suggestion.landmarks > 0 ? `${suggestion.landmarks} kale` : null,
+                    suggestion.snapped
+                      ? 'Yürüyüş yollarına göre çizildi; trafiğe ve çevrene dikkat et. Başladığın yere dönersen içerisi de senin.'
+                      : 'Kuş uçuşu bir yön önerisi: kesikli çizgiye yakın, güvenli yolları kullan. Başladığın yere dönersen içerisi de senin.',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Txt>
+              </View>
+            ) : (
+              <Txt variant="bodySm" muted>Bu sürede kazanılacak yeni hücre bulunamadı; başka bir süre dene.</Txt>
+            )}
+            {suggestions.length > 1 ? (
+              <Button label={`Başka rota (${(routeIndex % suggestions.length) + 1}/${suggestions.length})`} variant="secondary" size="sm" onPress={() => setRouteIndex((i) => i + 1)} />
+            ) : null}
+          </View>
+        ) : null}
+        {!noPermission && !loading && showTerritories && routeMinutes === null ? <MapLegend /> : null}
         {isRecording ? (
           <Button label="Devam eden aktiviteye dön" size="lg" icon="play" onPress={() => router.push('/record')} />
         ) : (
@@ -233,17 +460,6 @@ const styles = StyleSheet.create({
   },
   banner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 12, paddingHorizontal: 14, borderRadius: radius.md, borderWidth: 1 },
   chip: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
-  loading: {
-    position: 'absolute',
-    top: '46%',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
+
   card: { padding: 18, gap: 12, borderRadius: 18, borderWidth: 1 },
 });

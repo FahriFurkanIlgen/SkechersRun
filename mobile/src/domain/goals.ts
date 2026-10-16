@@ -87,6 +87,26 @@ export function defaultWeeklyGoalKm(level: AthleteLevel): number {
   return level === 'beginner' ? 10 : 25;
 }
 
+/** Moving minutes this week (Monday 00:00 local). */
+export function weekMinutes(activities: Activity[], now = Date.now()): number {
+  const from = startOfWeek(now);
+  return Math.round(activities.filter((a) => a.startedAt >= from).reduce((s, a) => s + a.movingTimeS, 0) / 60);
+}
+
+/** 150 active minutes a week is the WHO recommendation for adults; beginners start lower. */
+export function defaultWeeklyGoalMinutes(level: AthleteLevel): number {
+  return level === 'beginner' ? 90 : 150;
+}
+
+/** "45 dk", "2 sa 30 dk". */
+export function formatGoalMinutes(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  if (h === 0) return `${rest} dk`;
+  return rest === 0 ? `${h} sa` : `${h} sa ${rest} dk`;
+}
+
 /** Days left in the current week including today (Mon..Sun). */
 export function daysLeftInWeek(now = Date.now()): number {
   return 7 - Math.floor((now - startOfWeek(now)) / DAY_MS);

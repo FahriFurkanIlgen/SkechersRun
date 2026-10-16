@@ -12,6 +12,8 @@ struct SharedStats: Equatable {
   var cells: Int
   /// true = cells currently owned (server); false = cells gained (device only).
   var cellsOwned: Bool
+  /// true = weekDoneM / weekTargetM hold minutes of movement instead of meters.
+  var isMinutes: Bool
 
   /// App Group derived from the bundle id: com.x.runner.watchkitapp[.complication] → group.com.x.runner
   static var suite: UserDefaults? {
@@ -27,6 +29,7 @@ struct SharedStats: Equatable {
     weekStartMs = (dict["weekStartMs"] as? NSNumber)?.doubleValue ?? 0
     cells = (dict["cells"] as? NSNumber)?.intValue ?? 0
     cellsOwned = dict["cellsOwned"] as? Bool ?? false
+    isMinutes = dict["goalUnit"] as? String == "min"
   }
 
   static func load() -> SharedStats? {
@@ -41,6 +44,13 @@ struct SharedStats: Equatable {
   /// Distance done in the current week (0 once a new week started on the watch).
   func doneThisWeek(now: Date = Date()) -> Double {
     now.timeIntervalSince1970 * 1000 < weekStartMs + 7 * 86_400_000 ? weekDoneM : 0
+  }
+
+  /// "45 dk" / "2 sa 30 dk"
+  static func minutesText(_ minutes: Double) -> String {
+    let m = max(0, Int(minutes.rounded()))
+    if m < 60 { return "\(m) dk" }
+    return m % 60 == 0 ? "\(m / 60) sa" : "\(m / 60) sa \(m % 60) dk"
   }
 
   func ratio(now: Date = Date()) -> Double {

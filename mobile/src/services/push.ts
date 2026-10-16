@@ -46,13 +46,20 @@ const ROUTE_FOR_KIND: Record<NotificationKind, string> = {
   follow_request: '/people',
   new_follower: '/people',
   club_invite: '/inbox',
+  live_share: '/inbox',
 };
 
 /** Opens the relevant screen when a push (or local notification) is tapped. */
 export function handleNotificationTaps(): () => void {
   const open = (response: Notifications.NotificationResponse | null) => {
-    const data = response?.notification.request.content.data as { kind?: NotificationKind; activityId?: string } | undefined;
+    const data = response?.notification.request.content.data as
+      | { kind?: NotificationKind; activityId?: string; shareId?: string | null }
+      | undefined;
     if (!data?.kind) return;
+    if (data.kind === 'live_share' && data.shareId) {
+      router.push({ pathname: '/live/[id]', params: { id: data.shareId } });
+      return;
+    }
     // Local notification for a workout recorded on the Apple Watch (services/watch.ts).
     if ((data.kind as string) === 'watch_workout' && data.activityId) {
       router.push({ pathname: '/summary/[id]', params: { id: data.activityId } });

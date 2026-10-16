@@ -1,4 +1,5 @@
 import type { Activity, ClaimResult, RoutePoint, RouteShare, Visibility } from '../../domain/types';
+import { areaForRoute } from '../../services/area';
 import { requireSupabase } from './supabase';
 
 const MAX_POINTS = 19_000;
@@ -49,7 +50,11 @@ export async function submitActivity(
       p.mocked,
     ]),
   };
-  const { data, error } = await sb.rpc('submit_activity', { payload });
+  // City/district labels for district rankings; missing when geocoding fails.
+  const area = await areaForRoute(points).catch(() => null);
+  const { data, error } = await sb.rpc('submit_activity', {
+    payload: area ? { ...payload, city: area.city, district: area.district } : payload,
+  });
   if (error) throw new Error(error.message);
   const r = data as SubmitResponse;
   return {
@@ -99,8 +104,9 @@ export const REASON_LABEL: Record<string, string> = {
   overlapping_activity: 'Aynı zaman aralığında başka bir aktiviten zaten kayıtlı.',
   duplicate_trace: 'Bu rota daha önce yüklenmiş.',
   duplicate_import: 'Bu antrenman daha önce içe aktarılmış.',
+  protected_cells: 'Bazı hücreler kısa süre önce başka bir oyuncu tarafından alındığı için korumada; birkaç saat sonra alınabilir.',
   synthetic_route: 'Rota gerçek bir GPS kaydı gibi görünmüyor (hız ve aralıklar tamamen sabit). Çizilmiş veya üretilmiş rotalar hücre kazandırmaz.',
-  below_min_distance: 'Hücre kazanmak için en az 400 m gerekiyor.',
+  below_min_distance: 'Hücre kazanmak için en az 400 m gerekiyor; hareketin yine de hedefine sayıldı.',
   claim_too_large: 'Tek aktivite sınırı (300 hücre) aşıldığı için hücre verilmedi.',
   loop: 'Döngü kapandı: geçtiğin hücreler + çevrelediğin hücreler.',
   corridor: 'Açık rota: içinden geçtiğin hücreler.',

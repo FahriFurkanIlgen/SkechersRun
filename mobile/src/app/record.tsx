@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HoldHint, HoldToConfirm } from '../components/HoldToConfirm';
 import { Icon, SignalBars } from '../components/Icon';
 import { RouteMap } from '../components/RouteMap';
 import { Banner, Button, Metric, Txt } from '../components/ui';
@@ -12,6 +13,7 @@ import { currentSpeedMps } from '../domain/metrics';
 import { estimateClaim } from '../domain/territory';
 import { registerRemoteFinish } from '../features/activity/remoteFinish';
 import { useRecordingClock } from '../features/activity/useRecordingClock';
+import { activeLiveShare } from '../services/liveShare';
 import { announceSplit, splitUnitM } from '../services/splitFeedback';
 import { useIsOffline } from '../services/useConnectivity';
 import { useRecording } from '../state/recordingStore';
@@ -36,6 +38,8 @@ export default function RecordScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const units = useSettings((s) => s.units);
+  // Easy mode: two huge numbers and the cell count, nothing else to read.
+  const easy = useSettings((s) => s.easyMode);
   const voice = useSettings((s) => s.voiceFeedback);
   const haptic = useSettings((s) => s.hapticFeedback);
   const setSettings = useSettings((s) => s.set);
@@ -44,6 +48,17 @@ export default function RecordScreen() {
   const offline = useIsOffline();
   const leaving = useRef(false);
   const [locked, setLocked] = useState(false);
+  // Finish needs a long press; after letting go too early the hint is emphasised for a moment.
+  const [releasedEarly, setReleasedEarly] = useState(false);
+  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flagEarlyRelease = useCallback(() => {
+    setReleasedEarly(true);
+    if (releaseTimer.current) clearTimeout(releaseTimer.current);
+    releaseTimer.current = setTimeout(() => setReleasedEarly(false), 2500);
+  }, []);
+  useEffect(() => () => {
+    if (releaseTimer.current) clearTimeout(releaseTimer.current);
+  }, []);
 
   // Nothing to show (cancelled, or opened without an active recording).
   useEffect(() => {
@@ -92,6 +107,8 @@ export default function RecordScreen() {
   const dist = distanceParts(rec.distanceM, units);
   const bigColor = paused ? colors.text2 : colors.text;
   const sig = SIGNAL[signal];
+  // Re-read every render (the clock ticks each second); it is a sync kv read.
+  const liveShare = activeLiveShare();
   const sigColor = signal === 'good' || signal === 'fair' ? colors.ok : colors.warn;
 
   const cancel = () =>
@@ -102,7 +119,7 @@ export default function RecordScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <View style={{ height: 340 }}>
+      <View style={{ height: easy ? 260 : 340 }}>
         <RouteMap points={rec.points} cells={estimate.cellList} follow showsUserLocation accessibilityLabel="Canlı rota haritası. Konumun, kaydedilen yol ve kazanılan hücreler gösteriliyor." />
       </View>
 
@@ -121,6 +138,16 @@ export default function RecordScreen() {
           <SignalBars level={sig.level} color={sigColor} size={16} />
           <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: colors.text }}>{sig.text}</Text>
         </View>
+        {liveShare ? (
+          <View
+            accessible
+            accessibilityLabel={`Canlı konum ${liveShare.viewers} kişiyle paylaşılıyor`}
+            style={[chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary }} />
+            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: colors.primaryText }}>{`Canlı · ${liveShare.viewers}`}</Text>
+          </View>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Ekranı kilitle, yanlış dokunuşları önle"
@@ -147,22 +174,24 @@ export default function RecordScreen() {
         {rec.error ? <Banner tone="danger">{rec.error}</Banner> : null}
         {offline ? <Banner tone="info">Çevrimdışısın. Kayıt sürüyor; veriler cihazda güvende.</Banner> : null}
 
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <View style={{ flex: 1, gap: 2 }} accessible accessibilityLabel={`Süre: ${durationLabel(movingS)}`}>
+        <View style={{ flexDirection: easy ? 'column' : 'row', gap: 12 }}>
+          <View style={{ flex: easy ? undefined : 1, gap: 2 }} accessible accessibilityLabel={`Süre: ${durationLabel(movingS)}`}>
             <Txt variant="label" muted>Süre</Txt>
             <Metric value={formatDuration(movingS)} size="XL" color={bigColor} />
           </View>
-          <View style={{ flex: 1, gap: 2 }} accessible accessibilityLabel={`Mesafe: ${dist.value} ${dist.unit}`}>
+          <View style={{ flex: easy ? undefined : 1, gap: 2 }} accessible accessibilityLabel={`Mesafe: ${dist.value} ${dist.unit}`}>
             <Txt variant="label" muted>Mesafe</Txt>
             <Metric value={dist.value} unit={dist.unit} size="XL" color={bigColor} />
           </View>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 12, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Txt variant="label" muted>{type === 'ride' ? 'Hız' : 'Tempo'}</Txt>
-            <Metric value={pace.value} unit={pace.unit} size="M" />
-          </View>
+          {easy ? null : (
+            <View style={{ flex: 1, gap: 2 }}>
+              <Txt variant="label" muted>{type === 'ride' ? 'Hız' : 'Tempo'}</Txt>
+              <Metric value={pace.value} unit={pace.unit} size="M" />
+            </View>
+          )}
           <View style={{ flex: 1, gap: 2 }} accessible accessibilityLabel={`Tahmini kazanılan: ${formatCells(estimate.cells)}`}>
             <Txt variant="label" muted>Kazanılan alan</Txt>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -172,7 +201,7 @@ export default function RecordScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', display: easy ? 'none' : 'flex' }}>
           <Pressable
             accessibilityRole="switch"
             accessibilityLabel="Sesli geri bildirim, her 1 km"
@@ -212,41 +241,33 @@ export default function RecordScreen() {
             <>
               <View style={{ flexDirection: 'row', gap: 28 }}>
                 <View style={{ alignItems: 'center', gap: 8 }}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Aktiviteye devam et"
-                    onPress={() => void rec.resume()}
-                    style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Icon name="play" size={32} color={colors.onPrimary} />
-                  </Pressable>
+                  {/* Same footprint as the hold ring around "Bitir" so both labels line up. */}
+                  <View style={{ width: 104, height: 104, alignItems: 'center', justifyContent: 'center' }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Aktiviteye devam et"
+                      onPress={() => void rec.resume()}
+                      style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Icon name="play" size={32} color={colors.onPrimary} />
+                    </Pressable>
+                  </View>
                   <Txt variant="label">Devam et</Txt>
                 </View>
-                <View style={{ alignItems: 'center', gap: 8 }}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Aktiviteyi bitir. Bitirmek için basılı tut"
-                    accessibilityActions={[{ name: 'activate', label: 'Bitir' }]}
-                    onAccessibilityAction={() => void finish()}
-                    onLongPress={() => void finish()}
-                    delayLongPress={800}
-                    style={({ pressed }) => ({
-                      width: 88,
-                      height: 88,
-                      borderRadius: 44,
-                      borderWidth: 2,
-                      borderColor: colors.text,
-                      backgroundColor: pressed ? colors.surface2 : colors.surface,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    })}
-                  >
-                    <Icon name="stop" size={28} color={colors.text} />
-                  </Pressable>
-                  <Txt variant="label">Bitir</Txt>
-                </View>
+                <HoldToConfirm
+                  label="Bitir"
+                  accessibilityLabel="Antrenmanı bitir"
+                  hint="Bitirmek için basılı tut"
+                  onConfirm={() => void finish()}
+                  onEarlyRelease={flagEarlyRelease}
+                >
+                  <Icon name="stop" size={28} color={colors.text} />
+                </HoldToConfirm>
               </View>
-              <Txt variant="caption" muted>Bitirmek için basılı tut</Txt>
+              <HoldHint
+                text={releasedEarly ? 'Bitirmek için basılı tutmaya devam et' : 'Antrenmanı bitirmek için basılı tut'}
+                emphasised={releasedEarly}
+              />
               <Button label="Kaydı sil" variant="danger" size="sm" onPress={cancel} />
             </>
           )}

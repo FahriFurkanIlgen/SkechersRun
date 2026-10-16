@@ -20,6 +20,19 @@ export const RULE_SECTIONS: { title: string; body: string }[] = [
       'yalnızca henüz senin olmayan hücreler sayılır. Başka bir oyuncunun hücresinden geçersen onu ele geçirirsin.',
   },
   {
+    title: 'Bölgeni savun',
+    body:
+      'Hücrelerinden ara sıra geçmen yeterli. 3 hafta uğramadığın hücreler zayıflar (haritada soluk görünür), ' +
+      '6 haftayı doldurursa boşalır. Yeni aldığın hücreler 12 saat korunur; bu sürede kimse geri alamaz.',
+  },
+  {
+    title: 'Sezonlar, kaleler ve takımlar',
+    body:
+      'Her ay yeni bir sezon başlar. Kazandığın ve aldığın hücreler sezon puanı verir; park ve sahil gibi kalelerin her biri ' +
+      '+5 puan. Puanınla Çaylak’tan Efsane’ye yükselirsin. İlçe takımını seçersen haftalık kazancın ilçenin puanına, ' +
+      'kulübündeysen kulübün puanına da eklenir.',
+  },
+  {
     title: 'Sunucu karar verir',
     body:
       'Hücreler ve sahiplik sunucuda hesaplanır. Sahte konum, imkânsız hızlar, konum sıçramaları ve tekrar yüklenen ' +

@@ -38,12 +38,14 @@ const TYPE_FROM_HC: Partial<Record<number, ActivityType>> = {
   [ExerciseType.HIKING]: 'walk',
   [ExerciseType.RUNNING]: 'run',
   [ExerciseType.BIKING]: 'ride',
+  [ExerciseType.WHEELCHAIR]: 'wheelchair',
 };
 
 const HC_FROM_TYPE: Record<ActivityType, number> = {
   walk: ExerciseType.WALKING,
   run: ExerciseType.RUNNING,
   ride: ExerciseType.BIKING,
+  wheelchair: ExerciseType.WHEELCHAIR,
 };
 
 let initialized = false;

@@ -1,9 +1,10 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { activityRepo } from '../../data/local/activityRepo';
 import { speedMps } from '../../domain/metrics';
 import { estimateClaim, type ClaimEstimate } from '../../domain/territory';
 import type { Activity, RoutePoint } from '../../domain/types';
+import { useAccountSync } from '../../state/accountSyncStore';
 
 export interface ActivityWithRoute {
   activity: Activity;
@@ -89,6 +90,8 @@ export function useActivity(id: string | undefined) {
 export function useActivityHistory() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  // Activities restored from the server (after sign-in) arrive while screens are open.
+  const dataVersion = useAccountSync((st) => st.dataVersion);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,6 +107,12 @@ export function useActivityHistory() {
       void load();
     }, [load]),
   );
+
+  // Background updates: reload quietly (no loading state) when data changed.
+  useEffect(() => {
+    if (dataVersion === 0) return;
+    void activityRepo.listSaved().then(setActivities);
+  }, [dataVersion]);
 
   return { activities, loading, reload: load };
 }

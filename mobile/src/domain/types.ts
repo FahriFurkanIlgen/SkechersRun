@@ -3,7 +3,7 @@
  * `supabase/migrations` (snake_case there, camelCase here).
  */
 
-export type ActivityType = 'walk' | 'run' | 'ride';
+export type ActivityType = 'walk' | 'run' | 'ride' | 'wheelchair';
 
 export type Visibility = 'public' | 'followers' | 'private';
 
@@ -16,7 +16,7 @@ export type RouteShare = 'trimmed' | 'stats_only' | 'full';
 
 /** Where an activity was recorded. */
 /** runner_watch = recorded by the Runner Apple Watch app (delivered via Apple Health). */
-export type ActivitySource = 'phone' | 'apple_health' | 'health_connect' | 'runner_watch';
+export type ActivitySource = 'phone' | 'apple_health' | 'health_connect' | 'runner_watch' | 'strava';
 
 export interface User {
   id: string;
@@ -104,6 +104,21 @@ export interface TerritoryCell {
   /** null when the owner's profile is private. */
   username: string | null;
   isMine: boolean;
+  /** Owner has not run through it for a while; it will be freed if neglected. */
+  weak: boolean;
+  /** Recently acquired; nobody else can take it yet. */
+  protected: boolean;
+  /** Landmark ("kale") name when this is a landmark cell. */
+  landmark: string | null;
+}
+
+export interface Landmark {
+  q: number;
+  r: number;
+  name: string;
+  /** null = unclaimed or owner private. */
+  ownerUsername: string | null;
+  isMine: boolean;
 }
 
 export interface Club {
@@ -148,7 +163,8 @@ export type NotificationKind =
   | 'territory_lost'
   | 'follow_request'
   | 'new_follower'
-  | 'club_invite';
+  | 'club_invite'
+  | 'live_share';
 
 export interface AppNotification {
   id: string;

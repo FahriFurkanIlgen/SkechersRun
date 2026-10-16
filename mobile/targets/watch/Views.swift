@@ -50,10 +50,10 @@ struct WeekStatsView: View {
   let stats: SharedStats
 
   var body: some View {
-    let done = Format.distance(stats.doneThisWeek())
-    let target = Format.goal(stats.weekTargetM)
+    let done = stats.isMinutes ? SharedStats.minutesText(stats.doneThisWeek()) : Format.distance(stats.doneThisWeek()).value
+    let target = stats.isMinutes ? SharedStats.minutesText(stats.weekTargetM) : Format.goal(stats.weekTargetM)
     VStack(alignment: .leading, spacing: 4) {
-      Text("Bu hafta \(done.value) / \(target)")
+      Text("Bu hafta \(done) / \(target)")
         .font(.footnote)
       ProgressView(value: stats.ratio())
         .tint(.accentColor)

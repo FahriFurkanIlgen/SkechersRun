@@ -127,7 +127,7 @@ export async function fetchFollowGraph(myId: string): Promise<{ followers: Perso
 // ---- Leaderboards -------------------------------------------------------------
 
 export type LeaderboardScope = 'global' | 'nearby';
-export type LeaderboardMetric = 'area' | 'weekly_gain' | 'active_days';
+export type LeaderboardMetric = 'area' | 'weekly_gain' | 'active_days' | 'season';
 
 export interface LeaderboardRow {
   rank: number;
@@ -137,6 +137,65 @@ export interface LeaderboardRow {
   value: number;
   weeklyActivities: number;
   isMe: boolean;
+}
+
+export interface DistrictRow {
+  rank: number;
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  value: number;
+  isMe: boolean;
+}
+
+/** Players inside one district: cells owned there ('area') or gained there this week. */
+export async function fetchDistrictLeaderboard(city: string, district: string, metric: 'area' | 'weekly_gain'): Promise<DistrictRow[]> {
+  const rows = check(
+    await requireSupabase().rpc('district_leaderboard', { p_city: city, p_district: district, p_metric: metric, p_limit: 50 }),
+  ) as { rank: number; user_id: string; username: string; avatar_url: string | null; value: number; is_me: boolean }[];
+  return rows.map((r) => ({
+    rank: Number(r.rank),
+    userId: r.user_id,
+    username: r.username,
+    avatarUrl: r.avatar_url,
+    value: Number(r.value),
+    isMe: r.is_me,
+  }));
+}
+
+export interface DistrictBattleRow {
+  rank: number;
+  district: string;
+  teamSize: number;
+  weeklyGain: number;
+  cells: number;
+  isMine: boolean;
+}
+
+/** Districts of a city competing this week (teams = players who chose the district as home). */
+export async function fetchDistrictBattle(city: string): Promise<DistrictBattleRow[]> {
+  const rows = check(await requireSupabase().rpc('district_battle', { p_city: city })) as {
+    rank: number;
+    district: string;
+    team_size: number;
+    weekly_gain: number;
+    cells: number;
+    is_mine: boolean;
+  }[];
+  return rows.map((r) => ({
+    rank: Number(r.rank),
+    district: r.district,
+    teamSize: Number(r.team_size),
+    weeklyGain: Number(r.weekly_gain),
+    cells: Number(r.cells),
+    isMine: r.is_mine,
+  }));
+}
+
+/** Districts where the signed-in user has been active, most frequent first. */
+export async function fetchMyDistricts(): Promise<{ city: string; district: string; activities: number }[]> {
+  const rows = check(await requireSupabase().rpc('my_districts')) as { city: string; district: string; activities: number }[];
+  return rows.map((r) => ({ city: r.city, district: r.district, activities: Number(r.activities) }));
 }
 
 export async function fetchLeaderboard(opts: {
@@ -227,7 +286,8 @@ export async function markNotificationsRead(ids: string[]) {
   check(await requireSupabase().from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids));
 }
 
-export async function saveRemoteNotificationPrefs(userId: string, prefs: NotificationPrefs, pushToken: string | null) {
+/** `pushToken` undefined leaves the stored token unchanged; null clears it. */
+export async function saveRemoteNotificationPrefs(userId: string, prefs: NotificationPrefs, pushToken?: string | null) {
   check(
     await requireSupabase().from('notification_prefs').upsert({
       user_id: userId,
@@ -236,8 +296,92 @@ export async function saveRemoteNotificationPrefs(userId: string, prefs: Notific
       territory_changes: prefs.territoryChanges,
       follow_requests: prefs.followRequests,
       club_invites: prefs.clubInvites,
-      push_token: pushToken,
+      ...(pushToken !== undefined ? { push_token: pushToken } : {}),
       updated_at: new Date().toISOString(),
     }),
   );
+}
+
+export interface MySeason {
+  points: number;
+  seasonStart: number;
+  seasonEnd: number;
+  /** Landmark cells owned now. */
+  landmarks: number;
+  /** Own cells not visited lately (will be freed if neglected). */
+  weakCells: number;
+  /** Position among visible players this season. */
+  position: number;
+}
+
+export async function fetchMySeason(): Promise<MySeason> {
+  const d = check(await requireSupabase().rpc('my_season')) as Record<string, string | number>;
+  return {
+    points: Number(d.points),
+    seasonStart: Date.parse(String(d.season_start)),
+    seasonEnd: Date.parse(String(d.season_end)),
+    landmarks: Number(d.landmarks),
+    weakCells: Number(d.weak_cells),
+    position: Number(d.position),
+  };
+}
+
+export interface ClubRankRow {
+  rank: number;
+  clubId: string;
+  name: string;
+  memberCount: number;
+  weeklyGain: number;
+  cells: number;
+  isMember: boolean;
+}
+
+/** Clubs ranked by their members' gains this week. */
+export async function fetchClubLeaderboard(): Promise<ClubRankRow[]> {
+  const rows = check(await requireSupabase().rpc('club_leaderboard', { p_limit: 50 })) as {
+    rank: number; club_id: string; name: string; member_count: number; weekly_gain: number; cells: number; is_member: boolean;
+  }[];
+  return rows.map((r) => ({
+    rank: Number(r.rank),
+    clubId: r.club_id,
+    name: r.name,
+    memberCount: Number(r.member_count),
+    weeklyGain: Number(r.weekly_gain),
+    cells: Number(r.cells),
+    isMember: r.is_member,
+  }));
+}
+
+export interface ClubDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  isPrivate: boolean;
+  isMember: boolean;
+  isOwner: boolean;
+  inviteCode: string | null;
+  members: { userId: string; username: string; role: 'owner' | 'member'; weeklyGain: number; cells: number; isMe: boolean }[];
+}
+
+/** null when the club does not exist or is private and you are not a member. */
+export async function fetchClubDetail(clubId: string): Promise<ClubDetail | null> {
+  const d = check(await requireSupabase().rpc('club_detail', { p_club: clubId })) as Record<string, unknown> | null;
+  if (!d) return null;
+  return {
+    id: d.id as string,
+    name: d.name as string,
+    description: (d.description as string) ?? null,
+    isPrivate: !!d.is_private,
+    isMember: !!d.is_member,
+    isOwner: !!d.is_owner,
+    inviteCode: (d.invite_code as string) ?? null,
+    members: ((d.members as Record<string, unknown>[]) ?? []).map((m) => ({
+      userId: m.user_id as string,
+      username: m.username as string,
+      role: m.role as 'owner' | 'member',
+      weeklyGain: Number(m.weekly_gain),
+      cells: Number(m.cells),
+      isMe: !!m.is_me,
+    })),
+  };
 }

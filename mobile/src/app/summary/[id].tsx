@@ -18,7 +18,7 @@ import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
 import { fonts, radius, useTheme } from '../../theme/theme';
 
-const TITLE_NOUN: Record<ActivityType, string> = { walk: 'yürüyüşü', run: 'koşusu', ride: 'bisiklet turu' };
+const TITLE_NOUN: Record<ActivityType, string> = { walk: 'yürüyüşü', run: 'koşusu', ride: 'bisiklet turu', wheelchair: 'sandalye turu' };
 
 function suggestedTitle(startedAt: number, type: ActivityType): string {
   const hour = new Date(startedAt).getHours();
@@ -68,7 +68,7 @@ export default function Summary() {
   const cellCount = accepted ? activity.claim!.netGainCells : estimate.cells;
   const dist = splitValue(formatDistance(activity.distanceM, units));
   const syncFailed = saved && activity.syncState === 'pending_upload' && !!activity.lastSyncError;
-  const weekDone = goal.doneM + (saved ? 0 : activity.distanceM);
+  const weekDone = goal.done + (saved ? 0 : goal.amountOf(activity));
   const date = new Date(activity.startedAt);
   const dateText = `${date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} · ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · ${ACTIVITY_LABEL[activity.type]}${sourceLabel(activity) ? ` · ${sourceLabel(activity)}` : ''}`;
 
@@ -189,10 +189,10 @@ export default function Summary() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Txt variant="bodySm" style={{ fontFamily: fonts.bodySemi }}>Haftalık hedef</Txt>
             <Txt variant="bodySm" muted>
-              {formatGoalDistance(weekDone, units)} / {formatGoalDistance(goal.targetM, units)}
+              {goal.format(weekDone)} / {goal.format(goal.target)}
             </Txt>
           </View>
-          <ProgressBar value={weekDone} max={goal.targetM} label="Haftalık hedef" />
+          <ProgressBar value={weekDone} max={goal.target} label="Haftalık hedef" />
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 }}>

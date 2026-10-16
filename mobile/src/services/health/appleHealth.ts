@@ -44,12 +44,15 @@ const TYPE_FROM_HK: Partial<Record<WorkoutActivityType, ActivityType>> = {
   [WorkoutActivityType.hiking]: 'walk',
   [WorkoutActivityType.running]: 'run',
   [WorkoutActivityType.cycling]: 'ride',
+  [WorkoutActivityType.wheelchairWalkPace]: 'wheelchair',
+  [WorkoutActivityType.wheelchairRunPace]: 'wheelchair',
 };
 
 const HK_FROM_TYPE: Record<ActivityType, WorkoutActivityType> = {
   walk: WorkoutActivityType.walking,
   run: WorkoutActivityType.running,
   ride: WorkoutActivityType.cycling,
+  wheelchair: WorkoutActivityType.wheelchairWalkPace,
 };
 
 export function appleHealthSupported(): boolean {

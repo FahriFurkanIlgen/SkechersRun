@@ -31,6 +31,7 @@ export const MAX_SPEED_MPS: Record<ActivityType, number> = {
   walk: 3.5, // 12.6 km/h
   run: 8, // 28.8 km/h
   ride: 22, // 79 km/h
+  wheelchair: 6, // 21.6 km/h (racing chairs on the flat)
 };
 
 /** A single jump between consecutive fixes faster than this is a GPS glitch. */

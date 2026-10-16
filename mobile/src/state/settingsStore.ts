@@ -24,8 +24,20 @@ interface SettingsState {
   profileVisibility: Visibility;
   defaultActivityVisibility: Visibility;
   showInLeaderboards: boolean;
+  /** Share live position with these followers while recording (safety). */
+  liveShareEnabled: boolean;
+  liveShareContactIds: string[];
+  /** "İlçe takımı" (from the server profile). */
+  homeCity: string | null;
+  homeDistrict: string | null;
   /** null = use the level default (see goals.defaultWeeklyGoalKm). */
   weeklyGoalKm: number | null;
+  /** Weekly goal in distance or in active minutes (walker / easy friendly). */
+  weeklyGoalType: 'distance' | 'minutes';
+  /** null = use the level default (see goals.defaultWeeklyGoalMinutes). */
+  weeklyGoalMinutes: number | null;
+  /** Larger text and fewer details while recording; simpler map. */
+  easyMode: boolean;
   /** Spoken split every km during recording. */
   voiceFeedback: boolean;
   /** Vibration every km during recording. */
@@ -61,6 +73,13 @@ const defaults = {
   defaultActivityVisibility: 'followers' as Visibility,
   showInLeaderboards: true,
   weeklyGoalKm: null as number | null,
+  weeklyGoalType: 'distance' as 'distance' | 'minutes',
+  weeklyGoalMinutes: null as number | null,
+  easyMode: false,
+  liveShareEnabled: false,
+  liveShareContactIds: [] as string[],
+  homeCity: null as string | null,
+  homeDistrict: null as string | null,
   voiceFeedback: false,
   hapticFeedback: true,
   partnerContent: false,

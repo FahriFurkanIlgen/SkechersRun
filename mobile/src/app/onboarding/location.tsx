@@ -51,6 +51,9 @@ export default function LocationStep() {
       <Bullet icon="lock">
         Konumun <B>reklam hedeflemesi için kullanılmaz</B>. Paylaşılan rotalarda başlangıç ve bitiş her zaman gizlenir.
       </Bullet>
+      <Bullet icon="shield">
+        <B>Evin haritada görünmez:</B> ev ve iş gibi gizli bölgeler eklersen oradaki rotan kimseye gösterilmez.
+      </Bullet>
       {result === 'denied' ? (
         <Banner tone="warning" title="Konum izni reddedildi">
           İzni yalnızca cihaz Ayarları’ndan açabilirsin. Uygulamayı keşfetmeye yine de devam edebilirsin.

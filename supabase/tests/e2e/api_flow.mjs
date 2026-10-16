@@ -95,6 +95,19 @@ const signIn = must(await a2.auth.signInWithPassword({ email: emailA, password }
 assert.equal(signIn.user.id, uidA);
 ok('A signs in again with e-mail + password');
 
+// Restoring history on a device that does not have it (new phone, account switch).
+const mine = must(await a2.rpc('my_activities', { p_limit: 200 }), 'my activities');
+assert.equal(mine.length, 1);
+assert.equal(mine[0].id, res.activity_id);
+const minePts = must(await a2.rpc('my_route_points', { p_activity: res.activity_id }), 'my route points');
+assert.equal(minePts.length, pts.length);
+ok(`A restores own activity with ${minePts.length} route points`);
+const bulk = must(await a2.rpc('my_route_points_bulk', { p_activities: [res.activity_id] }), 'bulk route points');
+assert.equal(bulk.length, 1);
+assert.equal(bulk[0].points.length, pts.length);
+assert.equal(bulk[0].points[0].length, 8);
+ok('bulk route download returns compact points');
+
 // ---- User B: isolation (account switching on one device) ---------------
 const b = client();
 const signUpB = must(await b.auth.signUp({ email: `e2e-b-${run}@example.test`, password }), 'sign up B');
@@ -105,6 +118,10 @@ ok("B does not get A's privacy zones");
 const { count } = await b.from('activities').select('id', { count: 'exact', head: true }).eq('user_id', uidB).in('id', [res.activity_id]);
 assert.equal(count, 0);
 ok("A's activity is not counted as B's (account-switch detection)");
+assert.equal(must(await b.rpc('my_route_points', { p_activity: res.activity_id }), 'B route points').length, 0);
+assert.equal(must(await b.rpc('my_activities', { p_limit: 200 }), 'B activities').length, 0);
+assert.equal(must(await b.rpc('my_route_points_bulk', { p_activities: [res.activity_id] }), 'B bulk').length, 0);
+ok("B cannot restore A's activities or route points");
 const hijack = await b.from('profiles').update({ username: `hijack_${run}` }).eq('id', uidA).select();
 assert.equal((hijack.data ?? []).length, 0);
 ok("B cannot change A's profile");

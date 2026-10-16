@@ -9,10 +9,14 @@ import { formatDistance, formatDuration, sourceLabel } from '../../domain/format
 import type { Activity, ActivityType } from '../../domain/types';
 import { computeLocalStats, useActivityHistory } from '../../features/activity/hooks';
 import { VISIBILITY_ICON, VISIBILITY_LABEL } from '../../features/activity/visibility';
-import { useRemoteStats } from '../../features/profile/hooks';
+import { useMySeason, useRemoteStats } from '../../features/profile/hooks';
+import { seasonDaysLeft, seasonRank } from '../../domain/season';
+import type { MySeason } from '../../data/remote/socialApi';
 import { health } from '../../services/health';
+import { useAccountSync } from '../../state/accountSyncStore';
 import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
+import { stravaConfigured } from '../../services/strava';
 import { fonts, radius, useTheme } from '../../theme/theme';
 
 type Filter = 'all' | ActivityType;
@@ -34,6 +38,9 @@ export default function Profile() {
   const settings = useSettings();
   const session = useAuth((s) => s.session);
   const { activities, loading } = useActivityHistory();
+  const syncing = useAccountSync((s) => s.busy);
+  const homeDistrict = useSettings((s) => s.homeDistrict);
+  const season = useMySeason();
   const { stats } = useRemoteStats();
   const [filter, setFilter] = useState<Filter>('all');
   const [unsaved, setUnsaved] = useState<Activity | null>(null);
@@ -99,6 +106,8 @@ export default function Profile() {
         </View>
       </Card>
 
+      {season ? <SeasonCard season={season} /> : null}
+
       <View style={{ gap: 10 }}>
         <Txt variant="heading">Kişisel rekorlar</Txt>
         <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -128,10 +137,11 @@ export default function Profile() {
             { value: 'run', label: 'Koşu' },
             { value: 'walk', label: 'Yürüyüş' },
             { value: 'ride', label: 'Bisiklet' },
+            { value: 'wheelchair', label: 'Sandalye' },
           ]}
         />
-        {loading ? (
-          <Loading />
+        {loading || (syncing && activities.length === 0) ? (
+          <Loading label={syncing ? 'Aktivitelerin yükleniyor' : undefined} />
         ) : list.length === 0 ? (
           <EmptyState
             icon="route"
@@ -179,11 +189,59 @@ export default function Profile() {
         {health ? (
           <NavRow icon="heart" label="Saat antrenmanlarını aktar" sub={health.watches} onPress={() => router.push('/import-health')} />
         ) : null}
+        {session && stravaConfigured ? (
+          <NavRow icon="route" label="Strava’dan aktar" sub="Garmin, Coros, Suunto" onPress={() => router.push('/import-strava')} />
+        ) : null}
+        {session ? (
+          <NavRow icon="shield" label="İlçe takımın" value={homeDistrict ?? 'Seç'} onPress={() => router.push('/district')} />
+        ) : null}
         <NavRow icon="users" label="Takip ve takipçiler" onPress={() => router.push('/people')} />
         <NavRow icon="rank" label="Kulüpler" onPress={() => router.push('/clubs')} />
         <NavRow icon="bell" label="Bildirimler" onPress={() => router.push('/inbox')} last />
       </Group>
       <Button label="Oyun kuralları" variant="text" onPress={() => router.push('/how-it-works')} />
     </Screen>
+  );
+}
+
+const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+/** Monthly season: rank, progress to the next rank, and cells about to decay. */
+function SeasonCard({ season }: { season: MySeason }) {
+  const { colors } = useTheme();
+  const rank = seasonRank(season.points);
+  const days = seasonDaysLeft(season.seasonEnd);
+  const month = MONTHS[new Date(season.seasonStart).getMonth()];
+  return (
+    <Card style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ gap: 2 }}>
+          <Txt variant="caption" muted>{`${month} sezonu · ${days} gün kaldı`}</Txt>
+          <Text style={{ fontFamily: fonts.display, fontSize: 28, color: colors.text }}>{rank.tier}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+          <Text style={{ fontFamily: fonts.display, fontSize: 22, color: colors.primaryText }}>{`${Math.round(season.points)} puan`}</Text>
+          <Txt variant="caption" muted>{`Genel #${season.position}`}</Txt>
+        </View>
+      </View>
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={rank.next ? `${rank.next.tier} rütbesine ${rank.next.remaining} puan kaldı` : 'En üst rütbedesin'}
+        style={{ height: 8, borderRadius: 4, backgroundColor: colors.surface2, overflow: 'hidden' }}
+      >
+        <View style={{ width: `${Math.round(rank.progress * 100)}%`, height: 8, backgroundColor: colors.primary }} />
+      </View>
+      <Txt variant="caption" muted>
+        {rank.next ? `${rank.next.tier} için ${rank.next.remaining} puan` : 'En üst rütbedesin'}
+        {season.landmarks > 0 ? ` · ${season.landmarks} kale senin` : ''}
+        {' · Puan: kazandığın + aldığın hücreler, kale +5'}
+      </Txt>
+      {season.weakCells > 0 ? (
+        <Banner tone="warning" title={`${season.weakCells} hücren zayıfladı`} action={{ label: 'Haritada gör', onPress: () => router.push('/(tabs)') }}>
+          3 haftadır üzerinden geçmedin. 6 haftayı doldurursa boşalır; üzerinden geçmen yeterli.
+        </Banner>
+      ) : null}
+    </Card>
   );
 }

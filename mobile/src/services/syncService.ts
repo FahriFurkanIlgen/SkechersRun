@@ -3,6 +3,7 @@ import { activityRepo } from '../data/local/activityRepo';
 import { submitActivity } from '../data/remote/activityApi';
 import { backendConfigured } from '../data/remote/supabase';
 import { useAuth } from '../state/authStore';
+import { useAccountSync } from '../state/accountSyncStore';
 import { useSettings } from '../state/settingsStore';
 import { notifyActivityProcessed } from './notifications';
 
@@ -39,6 +40,8 @@ async function run(): Promise<number> {
       await activityRepo.markSyncError(activity.id, e instanceof Error ? e.message : String(e));
     }
   }
+  // Uploaded activities change cell ownership and sync badges: let screens reload.
+  if (uploaded > 0) useAccountSync.getState().bumpData();
   return uploaded;
 }
 

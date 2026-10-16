@@ -7,7 +7,7 @@ import type { Activity, UnitSystem } from '../../domain/types';
 /** Explains how the device estimate was derived, in the user's units. */
 export function estimateExplanation(e: ClaimEstimate, units: UnitSystem): string {
   if (e.shape === 'too_short') {
-    return `Hücre kazanmak için en az ${formatDistance(RULES.minClaimDistanceM, units)} gerekiyor.`;
+    return `Hücre kazanmak için en az ${formatDistance(RULES.minClaimDistanceM, units)} gerekiyor; bu hareketin yine de haftalık hedefine ve serine sayıldı.`;
   }
   if (e.shape === 'loop') {
     return 'Rota başladığın yere yakın bitti: geçtiğin ve çevrelediğin hücreler sayılır.';

@@ -116,6 +116,26 @@ kimliğini `xcodebuild` parametresiyle ezmek yerine `APP_BUNDLE_ID` ve `APPLE_TE
 Uygulama, giriş yapıldığında ve bildirim tercihleri değiştiğinde cihaz token'ını `notification_prefs.push_token`'a yazar;
 bildirime dokununca ilgili ekran açılır. Mesaj metinlerinin testleri: `node --test supabase/functions/send-push/messages.test.ts`.
 
+### Strava içe aktarma
+
+1. https://www.strava.com/settings/api adresinde bir API uygulaması oluştur. **Authorization Callback Domain**:
+   `strava-callback` (uygulama `runner://strava-callback` adresine döner; Strava bu alanı kabul etmezse `localhost` yazıp
+   `.env.local`'a `EXPO_PUBLIC_STRAVA_REDIRECT_URI=runner://localhost` ekle).
+2. `.env.local`'a `EXPO_PUBLIC_STRAVA_CLIENT_ID=<Client ID>` yaz ve uygulamayı yeniden derle. Client ID tanımlı değilse
+   Strava satırları gizlenir.
+3. Edge Function'ı yayınla ve gizli anahtarları tanımla (Client Secret yalnızca sunucuda durur):
+   ```bash
+   npx supabase functions deploy strava
+   npx supabase secrets set STRAVA_CLIENT_ID=<Client ID> STRAVA_CLIENT_SECRET=<Client Secret>
+   ```
+
+Token'lar `strava_connections` tablosunda tutulur; oyuncular bu tabloyu okuyamaz, yalnızca `strava_status()` ile bağlı olup
+olmadıklarını görür. İçe aktarılan aktiviteler Sağlık içe aktarmalarıyla aynı sunucu doğrulamasından geçer.
+Dönüşüm testleri: `node --test supabase/functions/strava/mapping.test.ts`.
+
+Garmin Connect'e doğrudan bağlantı Garmin'in iş ortağı onayını gerektirir; o zamana kadar Garmin aktiviteleri Strava,
+Apple Sağlık (Garmin Connect → Sağlık) ya da Health Connect üzerinden gelir.
+
 ### Uçtan uca API testi
 
 Uygulamanın sunucuya yaptığı çağrıları (kayıt, profil, gizli bölgeler, aktivite yükleme, hücreler, akış, sıralama,
@@ -164,6 +184,10 @@ kulüpler, veri ve hesap silme).
 | Apple Sağlık: Apple Watch / diğer uygulama antrenmanlarını rotasıyla içe aktarma, aktiviteleri Sağlık'a yazma | Uygulandı; gerçek Apple Watch verisiyle cihazda test edilmesi gerekiyor |
 | Apple Watch uygulaması: saatte telefonsuz kayıt (Sağlık'a rotasıyla yazılır, telefon otomatik içe aktarır), telefondaki kaydı yansıtma ve saatten duraklat/devam/bitir, km titreşimi, komplikasyon | Uygulandı; eşli iPhone + Watch simülatörlerinde yansıtma, komutlar ve haftalık istatistik doğrulandı. Saatte kaydedilen antrenmanın telefona aktarılması ve komplikasyonun görünümü gerçek cihazda test edilmedi |
 | Health Connect (Android): Wear OS / Galaxy Watch / Garmin (telefon uygulaması üzerinden) antrenmanlarını rotasıyla içe aktarma, aktiviteleri Health Connect'e yazma | Uygulandı; Android 14 emülatöründe izin akışı doğrulandı, gerçek saat verisiyle test edilmedi. Google Play'de yayın için Health Connect izin beyanı (Play Console) gerekir |
+| Strava içe aktarma (Garmin, Coros, Suunto… Strava üzerinden), rotasıyla | Kod hazır, **ertelendi**: Strava API'si ücretli abonelik istiyor. Client ID tanımlanana kadar arayüzde gizli |
+| Akıllı rota: haritada süreye göre (20–60 dk) en çok hücre kazandıracak tur önerisi (boş/rakip/zayıf hücreler, kaleler) | Çalışıyor (cihazda hesaplanır; sokaklara oturtulmaz, yön önerisidir) |
+| Kapsayıcılık: hareket süresi hedefi, kolay mod, tekerlekli sandalye türü | Çalışıyor |
+| Mahalle savaşı (ilçe takımları), sezon/rütbe, zayıflama/çürüme, koruma, kale hücreler, kulüp sıralaması, canlı konum paylaşımı | Çalışıyor (Supabase gerekir; SQL testleriyle doğrulandı) |
 | İlçe/şehir adıyla sıralama (tasarımdaki "Kadıköy / İstanbul") | Yarıçap tabanlı (5 / 25 km) olarak uygulandı; ad için ters geocoding servisi gerekir |
 | Sıralama değişim okları (↑2) | Yok — geçmiş sıralama anlık görüntüleri gerekiyor |
 

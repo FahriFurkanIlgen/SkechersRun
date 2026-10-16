@@ -3,10 +3,11 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { backendConfigured } from '../../data/remote/supabase';
-import { fetchCells, MAX_CELL_QUERY_SPAN_DEG } from '../../data/remote/cellsApi';
+import { fetchCells, fetchLandmarks, MAX_CELL_QUERY_SPAN_DEG } from '../../data/remote/cellsApi';
 import type { LatLng, Region } from '../../domain/geo';
-import type { TerritoryCell } from '../../domain/types';
+import type { Landmark, TerritoryCell } from '../../domain/types';
 import { getLocationAccess, type LocationAccess } from '../../services/location/permissions';
+import { useAccountSync } from '../../state/accountSyncStore';
 import { useAuth } from '../../state/authStore';
 
 /** Permission state + a current position for the home map. */
@@ -57,17 +58,27 @@ export type TerritoryStatus =
 export function useTerritories(region: Region | null) {
   const session = useAuth((s) => s.session);
   const [territories, setTerritories] = useState<TerritoryCell[]>([]);
+  const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [status, setStatus] = useState<TerritoryStatus>('loading');
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+  // Cells change when an activity is uploaded or the account's data arrives.
+  const dataVersion = useAccountSync((s) => s.dataVersion);
+  const [focusCount, setFocusCount] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      setFocusCount((n) => n + 1);
+    }, []),
+  );
 
   const load = useCallback(async (r: Region) => {
     const id = ++requestId.current;
     setStatus('loading');
     try {
-      const result = await fetchCells(r);
+      const [result, marks] = await Promise.all([fetchCells(r), fetchLandmarks(r).catch(() => [])]);
       if (id !== requestId.current) return;
       setTerritories(result);
+      setLandmarks(marks);
       setStatus('ready');
       setError(null);
     } catch (e) {
@@ -92,10 +103,11 @@ export function useTerritories(region: Region | null) {
     if (gate || !region) return;
     const t = setTimeout(() => void load(region), 400);
     return () => clearTimeout(t);
-  }, [gate, region, load]);
+  }, [gate, region, load, dataVersion, focusCount]);
 
   return {
     territories: gate ? [] : territories,
+    landmarks: gate ? [] : landmarks,
     status: gate ?? status,
     error,
     retry: () => region && load(region),

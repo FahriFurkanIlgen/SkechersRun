@@ -95,6 +95,7 @@ export default function OnboardingProfile() {
             { value: 'walk', label: ACTIVITY_LABEL.walk, icon: 'walk' },
             { value: 'run', label: ACTIVITY_LABEL.run, icon: 'run' },
             { value: 'ride', label: ACTIVITY_LABEL.ride, icon: 'ride' },
+            { value: 'wheelchair', label: 'Sandalye', icon: 'wheelchair' },
           ]}
         />
         <Segmented

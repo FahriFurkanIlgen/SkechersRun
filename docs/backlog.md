@@ -4,6 +4,20 @@
 
 ## Tamamlanan
 
+- **Rakiplerden ayrışma paketi (ilk 6 madde)**:
+  1. *Mahalle savaşı* — ilçe takımları, ilçe sıralaması ve şehir içi ilçe savaşı (`0012_districts.sql`; ilçe adı cihazda ters geocoding ile).
+  2. *Oyun derinliği* — 21 günde zayıflama, 42 günde serbest kalma (pg_cron), yeni hücreye 12 saat koruma, kale hücreler (+5),
+     aylık sezon ve rütbeler, kulüp sıralaması/detayı (`0013_game_depth.sql`).
+  3. *Gizlilik + canlı konum* — gizlilik kalkanı kartı; seçilen onaylı takipçilere kayıt sırasında son konum (rota değil),
+     bitince silinir, en fazla 8 saat (`0014_live_share.sql`).
+  4. *Kapsayıcılık* — hareket süresi hedefi (mesafe yerine), kolay mod (büyük rakamlar, sade kayıt ekranı), tekerlekli sandalye
+     türü (`0015_wheelchair.sql`, saatte de), kısa yürüyüşlerin hedefe sayıldığını söyleyen metinler.
+  5. *Akıllı rota* — haritada "Rota öner": 20/30/45/60 dk için başlangıca dönen ve en çok değerli hücreyi (boş, rakip, zayıf,
+     kale) kapsayan turlar; cihazda hesaplanır, sokaklara oturtulmaz (kuş uçuşu yön önerisi).
+  6. *Strava içe aktarma* — OAuth + `strava` Edge Function (token'lar yalnızca sunucuda), `strava` kaynağı (`0016_strava.sql`).
+     **Ertelendi:** Strava API'si yalnızca ücretli abonelere açık; API uygulaması oluşturulmadı. `EXPO_PUBLIC_STRAVA_CLIENT_ID`
+     tanımlı olmadığı için Strava girişleri uygulamada gizli.
+     Garmin Connect doğrudan bağlantısı iş ortağı onayı gerektiriyor; şimdilik Strava / Sağlık / Health Connect üzerinden.
 - **Apple Sağlık içe/dışa aktarma** — Apple Watch (veya başka uygulama) antrenmanları rotasıyla içe aktarılıp hücre kazandırıyor;
   aktiviteler isteğe bağlı olarak Sağlık'a yazılıyor. Sunucuda `source`, `external_id`, `source_device` alanları ve tekrar içe
   aktarma engeli (`0006_activity_source.sql`). Gerçek saat verisiyle cihaz testi bekliyor.
@@ -50,13 +64,12 @@ Android üretici pil optimizasyonları. (Yönlendirme uygulandı; testler cihazd
 
 - **Onaylı marka kılavuzu**: `theme.ts` (marka ana rengi, görüntü yazı tipi) ve ikon/splash kaynağının (`scripts/generate-brand-assets.mjs`) güncellenmesi.
 - **Davet kodlu arkadaş yarışmaları** (`challenges` tabloları hazır) ve kulüp bölgeleri (üyelerin hücreleri).
-- **Bölge savunma / çürüme mekaniği**: uzun süre ziyaret edilmeyen hücrelerin zayıflaması; yeni ele geçirilen hücreye kısa koruma süresi.
-- **İlçe/şehir adıyla sıralama**: ters geocoding servisi; şu an yarıçap tabanlı (5 / 25 km).
 - **Sıralama değişim okları**: haftalık sıralama anlık görüntüleri.
 - **Topluluk görevleri** (tasarımdaki "50 boş hücreyi birlikte doldurun").
 
 ## P3
 
-- Güvenli rota önerileri (yalnızca uygun veri sağlayıcısıyla; güvenlik garantisi gibi sunulmamalı).
+- Akıllı rotayı sokak ağına oturtma (yönlendirme servisi gerekir; güvenlik garantisi gibi sunulmamalı).
+- Garmin Connect / Polar / Coros doğrudan entegrasyonları (iş ortağı programları).
 - Canlı Etkinlik (iOS kilit ekranı) ve Android kalıcı bildirimde duraklat/bitir eylemleri.
 - İş ortaklığı içeriği: onaylı kampanyalar geldiğinde sponsorlu görev akışı (ayrı ürün/hukuk incelemesi).

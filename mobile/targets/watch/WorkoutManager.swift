@@ -186,10 +186,12 @@ final class WorkoutManager: NSObject, ObservableObject {
       HKSeriesType.workoutRoute(),
       HKQuantityType(.distanceWalkingRunning),
       HKQuantityType(.distanceCycling),
+      HKQuantityType(.distanceWheelchair),
     ]
     let read: Set<HKObjectType> = [
       HKQuantityType(.distanceWalkingRunning),
       HKQuantityType(.distanceCycling),
+      HKQuantityType(.distanceWheelchair),
     ]
     try await healthStore.requestAuthorization(toShare: share, read: read)
   }

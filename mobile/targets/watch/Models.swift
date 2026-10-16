@@ -2,7 +2,7 @@ import Foundation
 import HealthKit
 
 enum ActivityKind: String, CaseIterable, Identifiable {
-  case walk, run, ride
+  case walk, run, ride, wheelchair
 
   var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum ActivityKind: String, CaseIterable, Identifiable {
     case .walk: return "Yürüyüş"
     case .run: return "Koşu"
     case .ride: return "Bisiklet"
+    case .wheelchair: return "Sandalye"
     }
   }
 
@@ -19,6 +20,7 @@ enum ActivityKind: String, CaseIterable, Identifiable {
     case .walk: return "figure.walk"
     case .run: return "figure.run"
     case .ride: return "figure.outdoor.cycle"
+    case .wheelchair: return "figure.roll"
     }
   }
 
@@ -27,11 +29,16 @@ enum ActivityKind: String, CaseIterable, Identifiable {
     case .walk: return .walking
     case .run: return .running
     case .ride: return .cycling
+    case .wheelchair: return .wheelchairWalkPace
     }
   }
 
   var distanceType: HKQuantityType {
-    HKQuantityType(self == .ride ? .distanceCycling : .distanceWalkingRunning)
+    switch self {
+    case .ride: return HKQuantityType(.distanceCycling)
+    case .wheelchair: return HKQuantityType(.distanceWheelchair)
+    default: return HKQuantityType(.distanceWalkingRunning)
+    }
   }
 
   /// Same limits as src/domain/rules.ts (MAX_SPEED_MPS × 1.5 for single jumps).
@@ -40,6 +47,7 @@ enum ActivityKind: String, CaseIterable, Identifiable {
     case .walk: return 3.5 * 1.5
     case .run: return 8 * 1.5
     case .ride: return 22 * 1.5
+    case .wheelchair: return 6 * 1.5
     }
   }
 }

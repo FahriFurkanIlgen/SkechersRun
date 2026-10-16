@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, SignalBars, type IconName } from '../components/Icon';
-import { Banner, Button, IconButton, Segmented, Txt } from '../components/ui';
+import { Banner, Button, IconButton, NavRow, Segmented, Txt } from '../components/ui';
 import { RULES } from '../domain/rules';
 import type { ActivityType, Visibility } from '../domain/types';
 import { useGpsProbe } from '../features/activity/useGpsProbe';
@@ -14,6 +14,8 @@ import {
   requestBackgroundLocation,
   type LocationAccess,
 } from '../services/location/permissions';
+import { startLiveShare } from '../services/liveShare';
+import { useAuth } from '../state/authStore';
 import { useRecording } from '../state/recordingStore';
 import { useSettings } from '../state/settingsStore';
 import { fonts, radius, spacing, useTheme } from '../theme/theme';
@@ -22,6 +24,12 @@ const TYPES: { id: ActivityType; label: string; icon: IconName; desc: string }[]
   { id: 'walk', label: 'Yürüyüş', icon: 'walk', desc: 'Kendi temponda keşfet. Her sokak sayılır, acele yok.' },
   { id: 'run', label: 'Koşu', icon: 'run', desc: 'Tempoyu sen belirle. Geçtiğin her yol rotana eklenir.' },
   { id: 'ride', label: 'Bisiklet', icon: 'ride', desc: 'Daha geniş alanları dolaş. Alan, rotanın kendisinden hesaplanır.' },
+  {
+    id: 'wheelchair',
+    label: 'Sandalye',
+    icon: 'wheelchair',
+    desc: 'Tekerlekli sandalyeyle her sokak sayılır. Aynı harita, aynı hücreler, kendi temponda.',
+  },
 ];
 
 const START_ERROR: Record<string, string> = {
@@ -36,6 +44,9 @@ export default function PreActivity() {
   const insets = useSafeAreaInsets();
   const preferred = useSettings((s) => s.preferredActivity);
   const defaultVisibility = useSettings((s) => s.defaultActivityVisibility);
+  const liveShareEnabled = useSettings((s) => s.liveShareEnabled);
+  const liveShareContactIds = useSettings((s) => s.liveShareContactIds);
+  const session = useAuth((s) => s.session);
   const [type, setType] = useState<ActivityType>(preferred);
   const [visibility, setVisibility] = useState<Visibility>(defaultVisibility);
   const [access, setAccess] = useState<LocationAccess | null>(null);
@@ -55,7 +66,12 @@ export default function PreActivity() {
 
   const start = async () => {
     await rec.start(type, visibility);
-    if (useRecording.getState().session) router.replace('/record');
+    if (!useRecording.getState().session) return;
+    // Safety: chosen followers can see where you are while you record.
+    if (session && liveShareEnabled && liveShareContactIds.length > 0) {
+      void startLiveShare(liveShareContactIds, type).catch(() => undefined);
+    }
+    router.replace('/record');
   };
 
   return (
@@ -83,7 +99,7 @@ export default function PreActivity() {
 
           <View style={{ gap: 10 }}>
             <Txt variant="label" muted>Aktivite türü</Txt>
-            <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', gap: 10 }}>
+            <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               {TYPES.map((t) => {
                 const on = t.id === type;
                 return (
@@ -94,8 +110,9 @@ export default function PreActivity() {
                     accessibilityLabel={t.label}
                     onPress={() => setType(t.id)}
                     style={{
-                      flex: 1,
-                      height: 96,
+                      flexGrow: 1,
+                      flexBasis: '46%',
+                      height: 84,
                       borderRadius: radius.card,
                       borderWidth: on ? 2 : 1,
                       borderColor: on ? colors.primary : colors.border,
@@ -169,6 +186,17 @@ export default function PreActivity() {
               </Banner>
             ) : null}
           </View>
+
+          {session ? (
+            <NavRow
+              icon="shield"
+              label="Canlı konum paylaşımı"
+              sub="Seçtiğin kişiler kayıt sırasında nerede olduğunu görür"
+              value={liveShareEnabled && liveShareContactIds.length > 0 ? `${liveShareContactIds.length} kişi` : 'Kapalı'}
+              onPress={() => router.push('/live-contacts')}
+              last
+            />
+          ) : null}
 
           <Segmented
             label="Bu aktiviteyi kimler görebilir?"

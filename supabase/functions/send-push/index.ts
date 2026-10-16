@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       title: message.title,
       body: message.body,
       sound: 'default',
-      data: { kind: row.kind, notificationId: row.id },
+      data: { kind: row.kind, notificationId: row.id, shareId: row.payload?.share_id ?? null },
     }),
   });
   const result = await res.json();

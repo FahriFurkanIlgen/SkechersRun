@@ -7,7 +7,8 @@ export type NotificationKind =
   | 'territory_lost'
   | 'follow_request'
   | 'new_follower'
-  | 'club_invite';
+  | 'club_invite'
+  | 'live_share';
 
 export interface PushMessage {
   title: string;
@@ -28,9 +29,20 @@ export function messageFor(
     case 'territory_gained':
       return { title: 'Hücre kazandın', body: `+${cells(payload.cells)} artık senin.` };
     case 'territory_lost':
+      if (payload.reason === 'decay') {
+        return {
+          title: 'Bölgen boşaldı',
+          body: `6 haftadır uğramadığın ${cells(payload.cells)} boşaldı. Yeniden almak için koşuya çık.`,
+        };
+      }
       return {
         title: 'Bir bölgen el değiştirdi',
         body: `${actor ?? 'Bir oyuncu'} senden ${cells(payload.cells)} aldı. Geri almak ister misin?`,
+      };
+    case 'live_share':
+      return {
+        title: `${String(payload.username ?? 'Bir arkadaşın')} canlı konumunu paylaşıyor`,
+        body: 'Aktivitesi boyunca nerede olduğunu görmek için dokun.',
       };
     case 'follow_request':
       return { title: 'Yeni takip isteği', body: `${actor ?? 'Bir oyuncu'} seni takip etmek istiyor.` };

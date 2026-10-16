@@ -421,3 +421,8 @@ enabled = true
 # x-webhook-secret header (PUSH_WEBHOOK_SECRET) instead of a user JWT.
 [functions.send-push]
 verify_jwt = false
+
+# Strava import: called by signed-in players (JWT required). Needs the
+# STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET secrets.
+[functions.strava]
+verify_jwt = true

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import MapView, { Polygon, Polyline, type MapViewProps } from 'react-native-maps';
+import MapView, { Marker, Polygon, Polyline, type MapViewProps } from 'react-native-maps';
 import Svg, { Circle, Pattern, Polyline as SvgPolyline, Rect } from 'react-native-svg';
 import { regionForPoints, type LatLng, type Region } from '../domain/geo';
-import { cellKey, cellRing, cellsInBounds, type Cell } from '../domain/hex';
+import { cellCenter, cellKey, cellRing, cellsInBounds, type Cell } from '../domain/hex';
 import { segments } from '../domain/metrics';
-import type { RoutePoint, TerritoryCell } from '../domain/types';
+import type { Landmark, RoutePoint, TerritoryCell } from '../domain/types';
 import { fonts, useTheme } from '../theme/theme';
+import { Icon } from './Icon';
 import { Txt } from './ui';
 
 /** MapView with the design's muted base style and theme-aware appearance. */
@@ -107,10 +108,13 @@ export function CellLayer({
   cells,
   region,
   highlight,
+  opportunities,
 }: {
   cells: TerritoryCell[];
   region?: Region | null;
   highlight?: Cell[];
+  /** Unclaimed cells near the player, shown softly filled to invite a route. */
+  opportunities?: Cell[];
 }) {
   const { colors } = useTheme();
   const owned = useMemo(() => new Set(cells.map(cellKey)), [cells]);
@@ -132,14 +136,25 @@ export function CellLayer({
           lineDashPattern={[2, 3]}
         />
       ))}
+      {opportunities?.map((c) => (
+        <Polygon
+          key={`f${cellKey(c)}`}
+          coordinates={cellRing(c)}
+          fillColor={colors.primarySoft}
+          strokeColor={colors.primary}
+          strokeWidth={1}
+          lineDashPattern={[3, 3]}
+        />
+      ))}
       {cells.map((c) => (
         <Polygon
-          key={`o${cellKey(c)}`}
+          key={`o${cellKey(c)}${c.weak ? 'w' : ''}`}
           coordinates={cellRing(c)}
-          fillColor={c.isMine ? colors.ownFill : colors.rivalFill}
+          // Weak (unvisited) cells fade: no fill, thinner dotted outline.
+          fillColor={c.weak ? 'transparent' : c.isMine ? colors.ownFill : colors.rivalFill}
           strokeColor={c.isMine ? colors.ownStroke : colors.rivalStroke}
-          strokeWidth={c.isMine ? 2.5 : 2}
-          lineDashPattern={c.isMine ? undefined : [6, 4]}
+          strokeWidth={c.weak ? 1.5 : c.isMine ? 2.5 : 2}
+          lineDashPattern={c.weak ? [2, 4] : c.isMine ? undefined : [6, 4]}
         />
       ))}
       {highlight?.map((c) => (
@@ -156,6 +171,41 @@ export function CellLayer({
 }
 
 /** Legend swatches encode ownership by pattern and edge style, not only color. */
+/** Landmark ("kale") cells: a flag pin; filled when it is yours. */
+export function LandmarkMarkers({ landmarks }: { landmarks: Landmark[] }) {
+  const { colors } = useTheme();
+  return (
+    <>
+      {landmarks.map((l) => (
+        <Marker
+          key={`l${l.q}:${l.r}:${l.isMine ? 1 : 0}`}
+          coordinate={cellCenter(l)}
+          tracksViewChanges={false}
+          anchor={{ x: 0.5, y: 0.5 }}
+          title={l.name}
+          description={l.isMine ? 'Senin kalen · +5 sezon puanı' : l.ownerUsername ? `Sahibi: ${l.ownerUsername}` : 'Boş kale · alırsan +5 sezon puanı'}
+          accessibilityLabel={`Kale: ${l.name}${l.isMine ? ', senin' : l.ownerUsername ? `, sahibi ${l.ownerUsername}` : ', boş'}`}
+        >
+          <View
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: l.isMine ? colors.primary : colors.surface,
+              borderWidth: 2,
+              borderColor: l.isMine ? colors.surface : l.ownerUsername ? colors.rivalStroke : colors.primary,
+            }}
+          >
+            <Icon name="quests" size={16} color={l.isMine ? colors.onPrimary : colors.text} />
+          </View>
+        </Marker>
+      ))}
+    </>
+  );
+}
+
 export function MapLegend() {
   const { colors } = useTheme();
   const item = (swatch: React.ReactNode, label: string) => (

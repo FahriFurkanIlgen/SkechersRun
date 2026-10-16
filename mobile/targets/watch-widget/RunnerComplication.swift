@@ -59,6 +59,9 @@ struct ComplicationView: View {
   @ViewBuilder
   private func content(_ s: SharedStats) -> some View {
     let done = s.doneThisWeek(now: entry.date)
+    let progress = s.isMinutes
+      ? "\(SharedStats.minutesText(done)) / \(SharedStats.minutesText(s.weekTargetM))"
+      : "\(km(done)) / \(km(s.weekTargetM)) km"
     switch family {
     case .accessoryCircular:
       Gauge(value: s.ratio(now: entry.date)) {
@@ -76,14 +79,14 @@ struct ComplicationView: View {
             .tint(.accentColor)
         }
     case .accessoryInline:
-      Text("⬢ \(s.cells) · \(km(done))/\(km(s.weekTargetM)) km")
+      Text("⬢ \(s.cells) · \(progress)")
     default:
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 4) {
           Image(systemName: "hexagon.fill").foregroundStyle(Color.accentColor)
           Text("\(s.cells) hücre").font(.headline)
         }
-        Text("Bu hafta \(km(done)) / \(km(s.weekTargetM)) km")
+        Text("Bu hafta \(progress)")
           .font(.caption2)
         ProgressView(value: s.ratio(now: entry.date))
           .tint(.accentColor)

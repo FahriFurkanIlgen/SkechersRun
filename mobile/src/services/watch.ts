@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 import { RunnerWatch, type PhoneSessionPayload, type WatchStats, type WatchWorkout } from '../../modules/runner-watch';
 import { activityRepo } from '../data/local/activityRepo';
 import { fetchProfileStats } from '../data/remote/profileApi';
-import { defaultWeeklyGoalKm, startOfWeek, weekDistanceM } from '../domain/goals';
+import { defaultWeeklyGoalKm, defaultWeeklyGoalMinutes, startOfWeek, weekDistanceM, weekMinutes } from '../domain/goals';
 import { signalQuality } from '../domain/gpsFilter';
 import { estimateClaim } from '../domain/territory';
 import { requestRemoteFinish } from '../features/activity/remoteFinish';
@@ -54,13 +54,16 @@ async function refreshStats(): Promise<void> {
   if (!RunnerWatch) return;
   try {
     const activities = await activityRepo.listSaved();
-    const { weeklyGoalKm, level } = useSettings.getState();
+    const { weeklyGoalKm, weeklyGoalMinutes, weeklyGoalType, level } = useSettings.getState();
+    const minutes = weeklyGoalType === 'minutes';
     const session = useAuth.getState().session;
     const remote = session ? await fetchProfileStats(session.user.id).catch(() => null) : null;
     const now = Date.now();
     stats = {
-      weekDoneM: weekDistanceM(activities, now),
-      weekTargetM: (weeklyGoalKm ?? defaultWeeklyGoalKm(level)) * 1000,
+      // Field names predate the minutes goal; goalUnit tells the watch which one it is.
+      weekDoneM: minutes ? weekMinutes(activities, now) : weekDistanceM(activities, now),
+      weekTargetM: minutes ? (weeklyGoalMinutes ?? defaultWeeklyGoalMinutes(level)) : (weeklyGoalKm ?? defaultWeeklyGoalKm(level)) * 1000,
+      goalUnit: minutes ? 'min' : 'm',
       weekStartMs: startOfWeek(now),
       cells: remote ? remote.territoryCells : activities.reduce((s, a) => s + (a.claim?.netGainCells ?? 0), 0),
       cellsOwned: remote != null,
@@ -194,7 +197,13 @@ export function startWatchLink(): () => void {
     }
   });
   const goal = useSettings.subscribe((s, p) => {
-    if (s.weeklyGoalKm !== p.weeklyGoalKm || s.level !== p.level) void refreshStats();
+    if (
+      s.weeklyGoalKm !== p.weeklyGoalKm ||
+      s.weeklyGoalMinutes !== p.weeklyGoalMinutes ||
+      s.weeklyGoalType !== p.weeklyGoalType ||
+      s.level !== p.level
+    )
+      void refreshStats();
   });
 
   pushNow();

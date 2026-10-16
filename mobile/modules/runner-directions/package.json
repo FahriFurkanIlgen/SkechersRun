@@ -1,0 +1,7 @@
+{
+  "name": "runner-directions",
+  "version": "0.1.0",
+  "description": "Walking/cycling routes from Apple Maps (MKDirections) for Runner's smart route",
+  "main": "index.ts",
+  "private": true
+}

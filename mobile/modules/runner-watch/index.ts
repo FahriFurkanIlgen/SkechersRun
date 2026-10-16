@@ -28,6 +28,8 @@ export interface WatchStats {
   cells: number;
   /** true = currently owned (server); false = gained so far (device only). */
   cellsOwned: boolean;
+  /** "min": weekDoneM/weekTargetM are minutes, not meters. */
+  goalUnit?: 'm' | 'min';
 }
 
 /** A workout the watch recorded on its own and saved to Apple Health. */

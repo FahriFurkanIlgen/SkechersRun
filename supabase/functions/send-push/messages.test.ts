@@ -17,3 +17,14 @@ test('club invites read the inviter from from_user_id', () => {
   assert.equal(actorIdFor('club_invite', { from_user_id: 'u9' }), 'u9');
   assert.match(messageFor('club_invite', { club_name: 'Sabah' }, 'ayse').body, /“Sabah”/);
 });
+
+test('decayed cells have their own message', () => {
+  const m = messageFor('territory_lost', { cells: 4, reason: 'decay' }, null);
+  assert.match(m.title, /boşaldı/);
+  assert.match(m.body, /4 hücre/);
+});
+
+test('live share invites the viewer', () => {
+  const m = messageFor('live_share', { username: 'ayse', share_id: 's1' }, null);
+  assert.match(m.title, /ayse canlı konumunu paylaşıyor/);
+});

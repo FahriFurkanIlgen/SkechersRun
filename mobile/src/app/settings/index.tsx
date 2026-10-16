@@ -7,15 +7,18 @@ import { privacyZoneRepo } from '../../data/local/privacyZoneRepo';
 import { saveRemoteNotificationPrefs } from '../../data/remote/socialApi';
 import { backendConfigured } from '../../data/remote/supabase';
 import type { NotificationPrefs } from '../../domain/types';
+import { RULES } from '../../domain/rules';
 import { VISIBILITY_OPTIONS } from '../../features/activity/visibility';
 import { exportLocalData } from '../../features/profile/exportData';
 import { profileActions } from '../../features/profile/profileActions';
 import { getBatteryAdvice, openBatterySettings } from '../../services/batteryGuidance';
 import { health } from '../../services/health';
+import { refreshWatchStats } from '../../services/watch';
 import { getLocationAccess, openAppSettings, type LocationAccess } from '../../services/location/permissions';
 import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
-import { fonts, useTheme } from '../../theme/theme';
+import { stravaConfigured } from '../../services/strava';
+import { fonts, radius, useTheme } from '../../theme/theme';
 
 const ACCESS_TEXT: Record<LocationAccess, string> = {
   services_off: 'Konum servisleri kapalı',
@@ -51,7 +54,7 @@ export default function Settings() {
   const setNotif = (patch: Partial<NotificationPrefs>) => {
     const next = { ...s.notificationPrefs, ...patch };
     s.set({ notificationPrefs: next });
-    if (session) void saveRemoteNotificationPrefs(session.user.id, next, null).catch(() => undefined);
+    if (session) void saveRemoteNotificationPrefs(session.user.id, next).catch(() => undefined);
   };
 
   const confirm = (title: string, message: string, action: () => Promise<void>) =>
@@ -62,15 +65,24 @@ export default function Settings() {
 
   // Another account signing in on this device removes this account's local data;
   // warn if some of it has not reached the server yet.
+  // After signing out: back to the map with the sign-in sheet open (it can be
+  // dismissed to keep using the app without an account).
+  const signOutAndLeave = async () => {
+    await profileActions.signOut();
+    refreshWatchStats();
+    router.replace('/(tabs)');
+    router.push('/auth');
+  };
+
   const signOut = async () => {
     const pending = await profileActions.pendingUploadCount();
-    if (pending === 0) return useAuth.getState().signOut();
+    if (pending === 0) return signOutAndLeave();
     Alert.alert(
       'Yüklenmemiş aktiviteler var',
       `${pending} aktivite henüz sunucuya yüklenmedi. Çıkış yapıp bu cihazda başka bir hesapla girersen bu aktiviteler silinir. Aynı hesapla tekrar girersen yüklenmeye devam eder.`,
       [
         { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Çıkış yap', style: 'destructive', onPress: () => run(() => useAuth.getState().signOut()) },
+        { text: 'Çıkış yap', style: 'destructive', onPress: () => run(signOutAndLeave) },
       ],
     );
   };
@@ -84,6 +96,13 @@ export default function Settings() {
         <Txt variant="title" style={{ fontSize: 26 }}>Ayarlar ve gizlilik</Txt>
       </View>
       {error ? <Banner tone="danger">{error}</Banner> : null}
+
+      <PrivacyShield
+        zoneCount={zoneCount}
+        profileVisibility={s.profileVisibility}
+        showInLeaderboards={s.showInLeaderboards}
+        liveShare={s.liveShareEnabled && s.liveShareContactIds.length > 0 ? s.liveShareContactIds.length : 0}
+      />
 
       <Group title="Aktivite ve gizlilik">
         <View style={{ paddingVertical: 12, gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
@@ -109,6 +128,14 @@ export default function Settings() {
           value={zoneCount ? `${zoneCount} bölge` : 'Yok'}
           onPress={() => router.push('/settings/privacy-zones')}
         />
+        {session ? (
+          <NavRow
+            label="Canlı konum paylaşımı"
+            sub="Kayıt sırasında seçtiğin takipçiler nerede olduğunu görür"
+            value={s.liveShareEnabled && s.liveShareContactIds.length > 0 ? `${s.liveShareContactIds.length} kişi` : 'Kapalı'}
+            onPress={() => router.push('/live-contacts')}
+          />
+        ) : null}
         <SwitchRow
           label="Sıralamalarda görün"
           value={s.showInLeaderboards}
@@ -164,7 +191,14 @@ export default function Settings() {
           onChange={(v) => setNotif({ followRequests: v, clubInvites: v })}
         />
         <SwitchRow label="Sesli geri bildirim" sub="Kayıt sırasında her 1 km" value={s.voiceFeedback} onChange={(v) => s.set({ voiceFeedback: v })} />
-        <SwitchRow label="Titreşimli geri bildirim" sub="Kayıt sırasında her 1 km" value={s.hapticFeedback} onChange={(v) => s.set({ hapticFeedback: v })} last />
+        <SwitchRow label="Titreşimli geri bildirim" sub="Kayıt sırasında her 1 km" value={s.hapticFeedback} onChange={(v) => s.set({ hapticFeedback: v })} />
+        <SwitchRow
+          label="Kolay mod"
+          sub="Kayıtta yalnızca süre, mesafe ve hücre; daha büyük rakamlar"
+          value={s.easyMode}
+          onChange={(v) => s.set({ easyMode: v })}
+          last
+        />
       </Group>
 
       <Group title="Sağlık ve akıllı saat">
@@ -197,6 +231,17 @@ export default function Settings() {
           <NavRow icon="heart" label="Sağlık verisi" sub="Bu cihazda desteklenmiyor" last />
         )}
       </Group>
+      {stravaConfigured ? (
+        <Group title="Diğer uygulamalar">
+          <NavRow
+            icon="route"
+            label="Strava’dan aktar"
+            sub="Garmin, Coros, Suunto… Strava’ya giden aktiviteler, rotasıyla"
+            onPress={() => router.push('/import-strava')}
+            last
+          />
+        </Group>
+      ) : null}
       <Txt variant="caption" muted>
         Yalnızca antrenmanlar, rotaları ve mesafe okunur/yazılır. Sağlık verilerin reklam veya iş ortaklığı amacıyla kullanılmaz;
         izinleri istediğin zaman geri alabilirsin.
@@ -265,5 +310,48 @@ export default function Settings() {
       <Button label="Oyun kuralları" variant="text" onPress={() => router.push('/how-it-works')} />
       <Txt variant="caption" muted style={{ textAlign: 'center', fontFamily: fonts.body }}>Runner 0.1.0</Txt>
     </Screen>
+  );
+}
+
+const VISIBILITY_TEXT = { private: 'sadece sen', followers: 'takipçilerin', public: 'herkes' } as const;
+
+/** What protects the player right now, in plain words, with the one thing worth doing next. */
+function PrivacyShield({
+  zoneCount,
+  profileVisibility,
+  showInLeaderboards,
+  liveShare,
+}: {
+  zoneCount: number;
+  profileVisibility: 'private' | 'followers' | 'public';
+  showInLeaderboards: boolean;
+  liveShare: number;
+}) {
+  const { colors } = useTheme();
+  const row = (ok: boolean, text: string, action?: { label: string; onPress: () => void }) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <Icon name={ok ? 'checkCircle' : 'alert'} size={20} color={ok ? colors.ok : colors.warn} />
+      <Txt variant="bodySm" style={{ flex: 1 }}>{text}</Txt>
+      {action ? <Button label={action.label} variant="text" size="sm" onPress={action.onPress} /> : null}
+    </View>
+  );
+  return (
+    <View
+      accessibilityRole="summary"
+      style={{ padding: 16, gap: 10, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Icon name="shield" size={24} color={colors.primary} />
+        <Txt variant="heading">Gizlilik kalkanı</Txt>
+      </View>
+      {row(true, `Paylaşılan rotalarda başlangıç ve bitişin ilk ${RULES.publicRouteTrimM} m'si gizli`)}
+      {zoneCount > 0
+        ? row(true, `${zoneCount} gizli bölge: oradaki rotan kimseye görünmez`)
+        : row(false, 'Ev bölgen tanımlı değil', { label: 'Ekle', onPress: () => router.push('/settings/privacy-zones') })}
+      {row(profileVisibility !== 'public', `Profilini ${VISIBILITY_TEXT[profileVisibility]} görüyor`)}
+      {row(true, showInLeaderboards ? 'Sıralamalarda görünüyorsun' : 'Sıralamalarda görünmüyorsun')}
+      {row(true, liveShare > 0 ? `Canlı konum kayıt sırasında ${liveShare} kişiyle paylaşılır` : 'Canlı konum paylaşımı kapalı')}
+      {row(true, 'Konumun reklam için kullanılmaz, kimseye satılmaz')}
+    </View>
   );
 }

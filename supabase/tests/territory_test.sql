@@ -163,6 +163,12 @@ select test.assert((select count(*) = 0 from public.route_points), 'B cannot rea
 select test.assert((select count(*) = 0 from public.privacy_zones), 'B cannot read A''s privacy zones');
 select test.assert((select count(*) = 0 from public.territory_cells), 'cells not directly readable');
 
+-- A's cells were just claimed and are protected (0013); let the protection run out.
+reset role;
+update public.territory_cells set protected_until = now() - interval '1 minute'
+  where owner_id = '00000000-0000-0000-0000-00000000000a';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
 insert into r select 'b_capture', public.submit_activity(test.payload(
   '20000000-0000-0000-0000-000000000001', 'run',
   test.route(41.0, 29.0, '{{150,150},{450,150},{450,450},{150,450},{150,155}}', 3, now() - interval '30 minutes')));
@@ -317,4 +323,188 @@ select test.assert((select count(*) = 1 and bool_and(abs(lat - 41.2) < 0.01 and 
   'my_privacy_zones returns own zone near the real centre');
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 select test.assert((select count(*) = 0 from public.my_privacy_zones() where label = 'Ev'), 'other users zones are not returned');
+reset role;
+
+-- 0010: own activities and route points can be restored, nobody else's.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select count(*) > 0 from public.my_activities()), 'my_activities returns own activities');
+select test.assert((select count(*) > 0 from public.my_route_points((select id from public.my_activities() where status = 'accepted' limit 1))),
+  'my_route_points returns own points');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+select test.assert((select count(*) = 0 from public.my_route_points(
+  (select (res ->> 'activity_id')::uuid from r where name = 'b_watch'))), 'other users route points are not returned');
+reset role;
+
+-- 0011: bulk route points, owner only.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select count(*) > 0 and bool_and(jsonb_array_length(points) > 1)
+  from public.my_route_points_bulk(array(select id from public.my_activities() where status = 'accepted'))),
+  'my_route_points_bulk returns own routes as compact arrays');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+select test.assert((select count(*) = 0 from public.my_route_points_bulk(
+  array[(select (res ->> 'activity_id')::uuid from r where name = 'b_watch')])), 'bulk does not return other users routes');
+reset role;
+
+-- 0012: districts.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+update public.profiles set home_city = 'İstanbul', home_district = 'Kadıköy' where id = auth.uid();
+insert into r select 'a_kadikoy', public.submit_activity(test.payload(
+  '30000000-0000-0000-0000-000000000001', 'run',
+  test.route(42.0, 30.0, '{{0,0},{900,0}}', 3, now() - interval '20 minutes'))
+  || '{"city":"İstanbul","district":"Kadıköy"}');
+select test.assert((select a.district = 'Kadıköy' from public.activities a
+  where a.id = (select (res ->> 'activity_id')::uuid from r where name = 'a_kadikoy')), 'activity stores its district');
+reset role;
+select test.assert((select count(*) > 0 from public.territory_cells t where t.district = 'Kadıköy'), 'claimed cells store the district');
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select bool_or(l.is_me) from public.district_leaderboard('İstanbul', 'Kadıköy', 'area') l),
+  'district leaderboard ranks the player');
+select test.assert((select b.district = 'Kadıköy' and b.team_size = 1 and b.weekly_gain > 0 and b.is_mine
+  from public.district_battle('İstanbul') b where b.district = 'Kadıköy'), 'district battle counts the home team');
+select test.assert((select d.district = 'Kadıköy' from public.my_districts() d limit 1), 'my_districts suggests where I ran');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 0013: game depth (protection, decay, landmarks, seasons, clubs).
+reset role;
+-- hex_at matches the app's cellAt (src/domain/hex.ts): Moda Sahili → known cell.
+select test.assert((select (h.q, h.r) = (select q, r from public.landmarks where name = 'Moda Sahili')
+  from public.hex_at(40.9806, 29.0248) h), 'hex_at is consistent with seeded landmarks');
+-- A landmark on the next route.
+insert into public.landmarks (q, r, name)
+select h.q, h.r, 'Test Kalesi' from public.hex_at(43.0, 31.0 + 300 / (111195 * cos(radians(43.0)))) h;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+insert into r select 'b_depth', public.submit_activity(test.payload(
+  '40000000-0000-0000-0000-000000000001', 'run',
+  test.route(43.0, 31.0, '{{0,0},{900,0}}', 3, now() - interval '3 hours')));
+select test.assert((select (res ->> 'landmark_cells')::int = 1 from r where name = 'b_depth'),
+  'gaining a landmark cell is counted: ' || (select res::text from r where name = 'b_depth'));
+select test.assert((select (p ->> 'points')::numeric >= (select (res ->> 'net_gain_cells')::numeric + 5 from r where name = 'b_depth')
+  from public.my_season() p), 'season points include the landmark bonus');
+select test.assert((select count(*) > 0 from public.leaderboard('global', 'season') l where l.is_me), 'season leaderboard');
+select test.assert((select bool_or(c.protected) and bool_or(c.landmark = 'Test Kalesi')
+  from public.cells_in_bbox(30.99, 42.99, 31.02, 43.01) c), 'new cells are protected; landmark flagged');
+
+-- Someone else runs the same street right away: protected cells are not taken.
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+insert into r select 'c_protected', public.submit_activity(test.payload(
+  '40000000-0000-0000-0000-000000000002', 'run',
+  test.route(43.0, 31.0, '{{0,0},{900,0}}', 3, now() - interval '2 hours')));
+select test.assert((select res -> 'reasons' ? 'protected_cells' and (res ->> 'captured_cells')::int = 0 from r where name = 'c_protected'),
+  'protected cells cannot be captured: ' || (select res::text from r where name = 'c_protected'));
+reset role;
+update public.territory_cells set protected_until = now() - interval '1 minute'
+  where owner_id = '00000000-0000-0000-0000-00000000000b';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+insert into r select 'c_capture', public.submit_activity(test.payload(
+  '40000000-0000-0000-0000-000000000003', 'run',
+  test.route(43.0, 31.0, '{{0,0},{900,0}}', 3, now() - interval '1 hour')));
+select test.assert((select (res ->> 'captured_cells')::int > 0 from r where name = 'c_capture'),
+  'after protection ends, cells can be captured');
+reset role;
+
+-- Decay: weak after 21 days, abandoned (hidden, free, expired) after 42.
+update public.territory_cells set last_visited_at = now() - interval '30 days'
+  where owner_id = '00000000-0000-0000-0000-00000000000c';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+select test.assert((select bool_and(c.weak) from public.cells_in_bbox(30.99, 42.99, 31.02, 43.01) c where c.is_mine),
+  'unvisited cells are weak');
+select test.assert((select (p ->> 'weak_cells')::int > 0 from public.my_season() p), 'my_season reports weak cells');
+reset role;
+update public.territory_cells set last_visited_at = now() - interval '50 days'
+  where owner_id = '00000000-0000-0000-0000-00000000000c';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+select test.assert((select count(*) = 0 from public.cells_in_bbox(30.99, 42.99, 31.02, 43.01) c where c.is_mine),
+  'abandoned cells are hidden');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+insert into r select 'b_retake', public.submit_activity(test.payload(
+  '40000000-0000-0000-0000-000000000004', 'run',
+  test.route(43.0, 31.0, '{{0,0},{900,0}}', 3, now() - interval '40 minutes')));
+select test.assert((select (res ->> 'captured_cells')::int = 0 and (res ->> 'net_gain_cells')::int > 0 from r where name = 'b_retake'),
+  'abandoned cells are claimed as free, not captured: ' || (select res::text from r where name = 'b_retake'));
+reset role;
+update public.territory_cells set last_visited_at = now() - interval '50 days'
+  where owner_id = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select public.expire_territory() > 0), 'expire_territory frees abandoned cells');
+select test.assert((select count(*) > 0 from public.notifications n
+  where n.user_id = '00000000-0000-0000-0000-00000000000b' and n.kind = 'territory_lost' and n.payload ->> 'reason' = 'decay'),
+  'owner is told about decayed cells');
+
+-- Clubs: ranking and detail.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select public.create_club('Moda Koşucuları', 'test', false);
+select test.assert((select bool_or(c.is_member and c.weekly_gain > 0) from public.club_leaderboard() c), 'club leaderboard sums members');
+select test.assert((select (public.club_detail(c.club_id) -> 'members' -> 0 ->> 'is_me')::boolean
+  from public.club_leaderboard() c where c.is_member limit 1), 'club detail lists members');
+reset role;
+
+-- 0014: live location sharing (only accepted followers, only latest point, erased at the end).
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+select public.follow_user('00000000-0000-0000-0000-00000000000b');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select public.respond_follow('00000000-0000-0000-0000-00000000000c', true);
+select test.assert((select count(*) = 1 from public.live_share_candidates() where user_id = '00000000-0000-0000-0000-00000000000c'),
+  'accepted followers can be chosen');
+create temp table ls as select public.start_live_share(array['00000000-0000-0000-0000-00000000000c'::uuid], 'run') as id;
+select public.update_live_share((select id from ls), 41.0, 29.0, 8);
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+select test.assert((select (public.get_live_share((select id from ls)) ->> 'lat')::numeric = 41.0), 'viewer sees the latest position');
+select test.assert((select count(*) > 0 from public.notifications n where n.kind = 'live_share'), 'viewer is notified');
+select test.assert((select count(*) = 0 from public.live_shares), 'shares are not directly readable');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+select test.assert((select public.get_live_share((select id from ls)) is null), 'others cannot see the share');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select public.end_live_share((select id from ls));
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+select test.assert((select (s ->> 'active')::boolean = false and s ->> 'lat' is null from public.get_live_share((select id from ls)) s),
+  'ended share hides the position');
+reset role;
+select test.assert((select last_lat is null from public.live_shares where id = (select id from ls)), 'position erased when sharing ends');
+
+-- 0015: wheelchair activities.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select public.submit_activity(test.payload(
+  '50000000-0000-0000-0000-000000000001', 'wheelchair',
+  test.route(44.0, 32.0, '{{0,0},{800,0}}', 2, now() - interval '6 hours'))) ->> 'status' = 'accepted'),
+  'wheelchair activity at pushing speed is accepted');
+select test.assert((select public.submit_activity(test.payload(
+  '50000000-0000-0000-0000-000000000002', 'wheelchair',
+  test.route(44.1, 32.1, '{{0,0},{2000,0}}', 9, now() - interval '5 hours'))) -> 'reasons' ? 'impossible_average_speed'),
+  'wheelchair speed limit applies');
+reset role;
+
+-- 0016: Strava import source; tokens never reachable by players.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select public.submit_activity(test.payload(
+  '60000000-0000-0000-0000-000000000001', 'run',
+  test.route(45.0, 33.0, '{{0,0},{900,0}}', 3, now() - interval '7 hours'))
+  || '{"source":"strava","external_id":"12345","source_device":"Garmin · Strava"}') ->> 'status' = 'accepted'),
+  'strava activity is accepted');
+select test.assert((select public.submit_activity(test.payload(
+  '60000000-0000-0000-0000-000000000002', 'run',
+  test.route(45.0, 33.0, '{{0,0},{900,0}}', 3, now() - interval '7 hours'))
+  || '{"source":"strava","external_id":"12345"}') -> 'reasons' ? 'duplicate_import'),
+  'the same strava activity cannot be imported twice');
+select test.assert((select count(*) = 0 from public.strava_status()), 'not connected yet');
+reset role;
+insert into public.strava_connections (user_id, athlete_id, athlete_name, access_token, refresh_token, expires_at)
+  values ('00000000-0000-0000-0000-00000000000b', 1, 'B Test', 'secret-a', 'secret-r', now() + interval '1 hour');
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+select test.assert((select connected and athlete_name = 'B Test' from public.strava_status()), 'status shows the connection');
+-- run.sh grants select on every table to authenticated; RLS (no policies) still hides the rows.
+select test.assert((select count(*) = 0 from public.strava_connections), 'strava tokens are not readable');
 reset role;

@@ -2,6 +2,7 @@ import type { LocationObject } from 'expo-location';
 import { activityRepo } from '../../data/local/activityRepo';
 import { evaluateFix, type RawFix } from '../../domain/gpsFilter';
 import type { RoutePoint } from '../../domain/types';
+import { pushLiveLocation } from '../liveShare';
 import { readSession, writeSession } from './recordingSession';
 
 export interface IngestEvent {
@@ -85,6 +86,8 @@ async function process(locations: LocationObject[]): Promise<void> {
       writeSession({ ...latest, nextSeq: seq });
     }
     lastAccepted = { activityId: session.activityId, point: accepted[accepted.length - 1] };
+    // Safety sharing (if on): the newest position, throttled.
+    pushLiveLocation(accepted);
   }
 
   const tail = sorted[sorted.length - 1];

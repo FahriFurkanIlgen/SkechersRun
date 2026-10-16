@@ -145,3 +145,22 @@ export function estimateCells(points: RoutePoint[]): CellEstimate {
   for (const c of [...routeCells, ...loopCells]) all.set(cellKey(c), c);
   return { routeCells, loopCells, cells: [...all.values()], isLoop };
 }
+
+/**
+ * Cells within `radiusM` of a point (by cell centre) that are not in `owned`
+ * (keys from cellKey), nearest first. Used to suggest where to go next.
+ */
+export function emptyCellsNear(center: LatLng, radiusM: number, owned: Set<string>): Cell[] {
+  const dLat = radiusM / 111_195;
+  const dLng = radiusM / (111_195 * Math.cos((center.latitude * Math.PI) / 180));
+  const candidates = cellsInBounds(
+    { latitude: center.latitude - dLat, longitude: center.longitude - dLng },
+    { latitude: center.latitude + dLat, longitude: center.longitude + dLng },
+  );
+  return candidates
+    .filter((c) => !owned.has(cellKey(c)))
+    .map((c) => ({ c, d: haversineM(center, cellCenter(c)) }))
+    .filter((x) => x.d <= radiusM)
+    .sort((a, b) => a.d - b.d)
+    .map((x) => x.c);
+}
