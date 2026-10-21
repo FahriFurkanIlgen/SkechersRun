@@ -28,7 +28,7 @@ export async function syncPushToken(): Promise<'registered' | 'cleared' | 'unava
   if (notificationPrefs.enabled && (await getNotificationPermission()) === 'granted') {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Runner',
+        name: 'Battle Run',
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     }

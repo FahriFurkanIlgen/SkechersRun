@@ -85,7 +85,7 @@ export default function ImportStrava() {
         <EmptyState
           icon="lock"
           title="Önce giriş yap"
-          message="Strava hesabını Runner hesabına bağlamak için giriş yapmalısın."
+          message="Strava hesabını Battle Run hesabına bağlamak için giriş yapmalısın."
           action={{ label: "Giriş yap", onPress: () => router.push("/auth") }}
         />
       </Screen>

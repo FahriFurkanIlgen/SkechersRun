@@ -16,7 +16,7 @@ export default function Welcome() {
       </View>
       <SafeAreaView edges={['bottom']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
         <View style={{ marginTop: 60, marginLeft: 20, alignSelf: 'flex-start', backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-          <Txt variant="logo">Runner</Txt>
+          <Txt variant="logo">Battle Run</Txt>
         </View>
       </SafeAreaView>
       <SafeAreaView edges={['bottom']} style={{ flex: 1, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 16, gap: spacing(4) }}>

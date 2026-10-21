@@ -3,10 +3,10 @@ import type { ExpoConfig } from 'expo/config';
 const bundleId = process.env.APP_BUNDLE_ID ?? 'app.runner.mobile';
 
 const config: ExpoConfig = {
-  name: 'Runner',
+  name: 'Battle Run',
   slug: 'runner',
   scheme: 'runner',
-  version: '0.1.0',
+  version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -63,9 +63,9 @@ const config: ExpoConfig = {
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Runner, aktivite kaydederken rotanı çizmek ve haritada çevrendeki bölgeleri göstermek için konumunu kullanır.',
+          'Battle Run, aktivite kaydederken rotanı çizmek ve haritada çevrendeki bölgeleri göstermek için konumunu kullanır.',
         locationAlwaysAndWhenInUsePermission:
-          'Runner, ekran kilitliyken de aktivite kaydına devam edebilmek için konumunu kullanır. Konum yalnızca kayıt sırasında izlenir.',
+          'Battle Run, ekran kilitliyken de aktivite kaydına devam edebilmek için konumunu kullanır. Konum yalnızca kayıt sırasında izlenir.',
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
@@ -76,9 +76,9 @@ const config: ExpoConfig = {
       '@kingstinct/react-native-healthkit',
       {
         NSHealthShareUsageDescription:
-          'Runner, Apple Watch veya diğer uygulamalarla kaydettiğin yürüyüş, koşu ve bisiklet antrenmanlarını rotasıyla içe aktarabilmek için Sağlık verilerini okur.',
+          'Battle Run, Apple Watch veya diğer uygulamalarla kaydettiğin yürüyüş, koşu ve bisiklet antrenmanlarını rotasıyla içe aktarabilmek için Sağlık verilerini okur.',
         NSHealthUpdateUsageDescription:
-          'Runner, istersen kaydettiğin aktiviteleri rotasıyla birlikte Sağlık uygulamasına yazar.',
+          'Battle Run, istersen kaydettiğin aktiviteleri rotasıyla birlikte Sağlık uygulamasına yazar.',
         // No background delivery: Runner only reads when you open the import screen.
         background: false,
       },
@@ -90,7 +90,7 @@ const config: ExpoConfig = {
     [
       'expo-image-picker',
       {
-        photosPermission: 'Runner, profil fotoğrafı seçebilmen için fotoğraflarına erişir.',
+        photosPermission: 'Battle Run, profil fotoğrafı seçebilmen için fotoğraflarına erişir.',
         cameraPermission: false,
         microphonePermission: false,
       },

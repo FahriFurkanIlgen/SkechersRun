@@ -18,23 +18,23 @@ export interface BatteryAdvice {
 const VENDOR_STEPS: { match: RegExp; steps: string }[] = [
   {
     match: /xiaomi|redmi|poco/i,
-    steps: 'Ayarlar → Uygulamalar → Runner → Pil tasarrufu → “Kısıtlama yok”. Aynı ekranda “Otomatik başlat”ı da aç.',
+    steps: 'Ayarlar → Uygulamalar → Battle Run → Pil tasarrufu → “Kısıtlama yok”. Aynı ekranda “Otomatik başlat”ı da aç.',
   },
   {
     match: /samsung/i,
-    steps: 'Ayarlar → Pil → Arka plan kullanım sınırları → Runner’ı “Hiç uyumayan uygulamalar”a ekle.',
+    steps: 'Ayarlar → Pil → Arka plan kullanım sınırları → Battle Run’ı “Hiç uyumayan uygulamalar”a ekle.',
   },
   {
     match: /huawei|honor/i,
-    steps: 'Ayarlar → Pil → Uygulama başlatma → Runner → “Manuel yönet” ve üç seçeneği de aç.',
+    steps: 'Ayarlar → Pil → Uygulama başlatma → Battle Run → “Manuel yönet” ve üç seçeneği de aç.',
   },
   {
     match: /oppo|realme|oneplus/i,
-    steps: 'Ayarlar → Pil → Runner → “Arka planda çalışmaya izin ver”i aç ve uygulamayı kısıtlama.',
+    steps: 'Ayarlar → Pil → Battle Run → “Arka planda çalışmaya izin ver”i aç ve uygulamayı kısıtlama.',
   },
   {
     match: /vivo|iqoo/i,
-    steps: 'Ayarlar → Pil → Arka planda yüksek güç tüketimi → Runner’a izin ver.',
+    steps: 'Ayarlar → Pil → Arka planda yüksek güç tüketimi → Battle Run’a izin ver.',
   },
 ];
 

@@ -58,7 +58,7 @@ export default function Clubs() {
                           label="Davet et"
                           variant="secondary"
                           size="sm"
-                          onPress={() => void Share.share({ message: `Runner'da "${c.name}" kulübüne katıl. Davet kodu: ${c.inviteCode}` })}
+                          onPress={() => void Share.share({ message: `Battle Run'da "${c.name}" kulübüne katıl. Davet kodu: ${c.inviteCode}` })}
                         />
                       ) : (
                         <Button label="Ayrıl" variant="danger" size="sm" onPress={() => void act(() => leaveClub(c.id))} />

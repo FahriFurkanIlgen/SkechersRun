@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
@@ -18,7 +19,12 @@ import { getLocationAccess, openAppSettings, type LocationAccess } from '../../s
 import { useAuth } from '../../state/authStore';
 import { useSettings } from '../../state/settingsStore';
 import { stravaConfigured } from '../../services/strava';
+import { FEATURES } from '../../domain/features';
+import * as WebBrowser from 'expo-web-browser';
 import { fonts, radius, useTheme } from '../../theme/theme';
+
+/** Support and privacy pages (github.com/FahriFurkanIlgen/battle-run). */
+const SITE_URL = 'https://fahrifurkanilgen.github.io/battle-run';
 
 const ACCESS_TEXT: Record<LocationAccess, string> = {
   services_off: 'Konum servisleri kapalı',
@@ -247,15 +253,17 @@ export default function Settings() {
         izinleri istediğin zaman geri alabilirsin.
       </Txt>
 
-      <Group title="İş ortaklığı içeriği">
-        <SwitchRow
-          label="İş ortaklığı içeriği"
-          sub="Sponsorlu görevler ve istek üzerine ekipman önerileri. Kapalıyken hiçbiri gösterilmez."
-          value={s.partnerContent}
-          onChange={(v) => s.set({ partnerContent: v })}
-          last
-        />
-      </Group>
+      {FEATURES.partnerContent ? (
+        <Group title="İş ortaklığı içeriği">
+          <SwitchRow
+            label="İş ortaklığı içeriği"
+            sub="Sponsorlu görevler ve istek üzerine ekipman önerileri. Kapalıyken hiçbiri gösterilmez."
+            value={s.partnerContent}
+            onChange={(v) => s.set({ partnerContent: v })}
+            last
+          />
+        </Group>
+      ) : null}
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
         <Icon name="lock" size={18} color={colors.text2} />
         <Txt variant="caption" muted style={{ flex: 1 }}>
@@ -308,7 +316,9 @@ export default function Settings() {
         />
       </Group>
       <Button label="Oyun kuralları" variant="text" onPress={() => router.push('/how-it-works')} />
-      <Txt variant="caption" muted style={{ textAlign: 'center', fontFamily: fonts.body }}>Runner 0.1.0</Txt>
+      <Button label="Gizlilik politikası" variant="text" onPress={() => void WebBrowser.openBrowserAsync(`${SITE_URL}/privacy.html`)} />
+      <Button label="Destek" variant="text" onPress={() => void WebBrowser.openBrowserAsync(`${SITE_URL}/`)} />
+      <Txt variant="caption" muted style={{ textAlign: 'center', fontFamily: fonts.body }}>{`Battle Run ${Constants.expoConfig?.version ?? ''}`}</Txt>
     </Screen>
   );
 }

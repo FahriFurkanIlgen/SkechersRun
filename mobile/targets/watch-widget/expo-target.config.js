@@ -2,7 +2,7 @@
 module.exports = (config) => ({
   type: 'watch-widget',
   name: 'RunnerComplication',
-  displayName: 'Runner',
+  displayName: 'Battle Run',
   // Must be prefixed by the watch app's identifier (targets/watch).
   bundleIdentifier: '.watchkitapp.widgets',
   deploymentTarget: '10.0',

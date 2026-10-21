@@ -32,7 +32,7 @@ function locationOptions(type: ActivityType): Location.LocationTaskOptions {
     deferredUpdatesInterval: 10_000,
     deferredUpdatesDistance: 25,
     foregroundService: {
-      notificationTitle: 'Runner aktivite kaydediyor',
+      notificationTitle: 'Battle Run aktivite kaydediyor',
       notificationBody: 'Rotan kaydediliyor. Durdurmak için uygulamayı aç.',
       notificationColor: '#0E8C7F',
       killServiceOnDestroy: false,

@@ -127,6 +127,11 @@ export function scoreLoop(points: LatLng[], ctx: ScoreContext): Pick<RouteSugges
 }
 
 /** Target loop length for a duration. */
+/** Minutes a loop of this length takes at a typical pace. */
+export function loopMinutes(type: ActivityType, distanceM: number): number {
+  return Math.round(distanceM / SPEED[type] / 60);
+}
+
 export function loopDistanceM(type: ActivityType, minutes: number): number {
   return Math.max(RULES.minClaimDistanceM * 1.5, SPEED[type] * minutes * 60);
 }

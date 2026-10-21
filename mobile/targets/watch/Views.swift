@@ -36,13 +36,13 @@ struct StartView: View {
         }
         Text(phone.reachable
           ? "Saatin GPS'iyle kaydeder. Telefonda kayıt başlatırsan saat onu gösterir."
-          : "Telefon gerekmez: saatin GPS'iyle kaydeder, bitince Sağlık'a ve telefondaki Runner'a aktarılır.")
+          : "Telefon gerekmez: saatin GPS'iyle kaydeder, bitince Sağlık'a ve telefondaki Battle Run'a aktarılır.")
           .font(.footnote)
           .foregroundStyle(.secondary)
           .padding(.top, 4)
       }
     }
-    .navigationTitle("Runner")
+    .navigationTitle("Battle Run")
   }
 }
 
@@ -278,7 +278,7 @@ struct SummaryView: View {
               .foregroundStyle(.orange)
           }
           if s.savedToHealth {
-            Text("Sağlık'a kaydedildi. Telefondaki Runner'ı açınca özet gelir; kaydettiğinde hücreler sunucuda hesaplanır.")
+            Text("Sağlık'a kaydedildi. Telefondaki Battle Run'ı açınca özet gelir; kaydettiğinde hücreler sunucuda hesaplanır.")
               .font(.footnote)
               .foregroundStyle(.secondary)
           } else if let error = workout.error {

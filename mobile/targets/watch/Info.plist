@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Runner, saatte kaydettiğin antrenmanın mesafesini gösterebilmek için Sağlık verilerini okur. Nabız gibi diğer veriler okunmaz.</string>
+	<string>Battle Run, saatte kaydettiğin antrenmanın mesafesini gösterebilmek için Sağlık verilerini okur. Nabız gibi diğer veriler okunmaz.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Runner, saatte kaydettiğin yürüyüş, koşu ve bisiklet antrenmanlarını rotasıyla Sağlık'a kaydeder; telefondaki Runner bunları içe aktarır.</string>
+	<string>Battle Run, saatte kaydettiğin yürüyüş, koşu ve bisiklet antrenmanlarını rotasıyla Sağlık'a kaydeder; telefondaki Battle Run bunları içe aktarır.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Runner, saatte aktivite kaydederken rotanı çizmek ve kazandığın hücreleri hesaplamak için konumunu kullanır.</string>
+	<string>Battle Run, saatte aktivite kaydederken rotanı çizmek ve kazandığın hücreleri hesaplamak için konumunu kullanır.</string>
 	<key>WKBackgroundModes</key>
 	<array>
 		<string>workout-processing</string>

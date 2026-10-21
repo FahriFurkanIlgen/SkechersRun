@@ -182,7 +182,7 @@ export default function PreActivity() {
             ) : null}
             {battery ? (
               <Banner tone="info" title="Pil optimizasyonu açık" action={{ label: 'Pil ayarlarını aç', onPress: () => void openBatterySettings() }}>
-                {`Uzun aktivitelerde telefon Runner’ı durdurabilir. Listede Runner’ı “Optimize etme” olarak işaretle.${battery.vendorSteps ? `\n\nBu telefonda ayrıca: ${battery.vendorSteps}` : ''}`}
+                {`Uzun aktivitelerde telefon Battle Run’ı durdurabilir. Listede Battle Run’ı “Optimize etme” olarak işaretle.${battery.vendorSteps ? `\n\nBu telefonda ayrıca: ${battery.vendorSteps}` : ''}`}
               </Banner>
             ) : null}
           </View>

@@ -7,6 +7,7 @@ import { daysLeftInWeek, defaultWeeklyGoalKm, defaultWeeklyGoalMinutes, formatGo
 import { useActivityHistory } from '../../features/activity/hooks';
 import { useWeeklyGoal } from '../../features/profile/hooks';
 import { useSettings } from '../../state/settingsStore';
+import { FEATURES } from '../../domain/features';
 import { fonts, radius, useTheme } from '../../theme/theme';
 
 const GOAL_STEPS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
@@ -25,7 +26,7 @@ export default function Quests() {
   const level = useSettings((s) => s.level);
   const goalKm = useSettings((s) => s.weeklyGoalKm) ?? defaultWeeklyGoalKm(level);
   const goalMinutes = useSettings((s) => s.weeklyGoalMinutes) ?? defaultWeeklyGoalMinutes(level);
-  const partnerContent = useSettings((s) => s.partnerContent);
+  const partnerContent = useSettings((s) => s.partnerContent) && FEATURES.partnerContent;
   const set = useSettings((s) => s.set);
   const [editing, setEditing] = useState(false);
   const quests = useMemo(() => weeklyGoals(activities, level), [activities, level]);
@@ -123,13 +124,15 @@ export default function Quests() {
         </View>
       ) : null}
 
-      <Txt variant="caption" muted>
-        İş ortaklığı içeriği {partnerContent ? 'açık' : 'kapalı'}.{' '}
-        <Text style={{ fontFamily: fonts.bodyBold, color: colors.primaryText }} onPress={() => router.push('/settings')}>
-          Ayarlar
-        </Text>
-        ’dan değiştirebilirsin.
-      </Txt>
+      {FEATURES.partnerContent ? (
+        <Txt variant="caption" muted>
+          İş ortaklığı içeriği {partnerContent ? 'açık' : 'kapalı'}.{' '}
+          <Text style={{ fontFamily: fonts.bodyBold, color: colors.primaryText }} onPress={() => router.push('/settings')}>
+            Ayarlar
+          </Text>
+          ’dan değiştirebilirsin.
+        </Txt>
+      ) : null}
       <Button label="Oyun kuralları" variant="text" onPress={() => router.push('/how-it-works')} />
     </Screen>
   );

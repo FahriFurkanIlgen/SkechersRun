@@ -56,7 +56,7 @@ const apple: HealthPlatform = {
   listWorkouts: listHealthWorkouts,
   importWorkout: importHealthWorkout,
   exportActivity: exportToAppleHealth,
-  permissionHint: 'Sağlık uygulaması → Paylaşım → Uygulamalar → Runner',
+  permissionHint: 'Sağlık uygulaması → Paylaşım → Uygulamalar → Battle Run',
 };
 
 const healthConnect: HealthPlatform = {
@@ -70,7 +70,7 @@ const healthConnect: HealthPlatform = {
   listWorkouts: listHealthConnectWorkouts,
   importWorkout: importHealthConnectWorkout,
   exportActivity: exportToHealthConnect,
-  permissionHint: 'Health Connect → Uygulama izinleri → Runner',
+  permissionHint: 'Health Connect → Uygulama izinleri → Battle Run',
   openSettings: openHealthConnectSettings,
 };
 

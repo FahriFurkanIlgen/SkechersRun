@@ -19,7 +19,7 @@ export default function LocationStep() {
       total={3}
       icon="pin"
       title="Konumunu neden istiyoruz?"
-      lead="Runner, rotanı ve kazandığın alanı haritada gösterebilmek için konumuna ihtiyaç duyar."
+      lead="Battle Run, rotanı ve kazandığın alanı haritada gösterebilmek için konumuna ihtiyaç duyar."
       onSkip={next}
       footer={
         result === 'denied' || result === 'services_off' ? (

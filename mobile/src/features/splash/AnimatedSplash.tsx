@@ -129,7 +129,7 @@ export function AnimatedSplash({
   return (
     <Animated.View
       accessible
-      accessibilityLabel="Runner açılıyor. Şehrin senin oyun alanın."
+      accessibilityLabel="Battle Run açılıyor. Şehrin senin oyun alanın."
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, opacity: fade, zIndex: 10 }]}
     >
@@ -192,7 +192,7 @@ export function AnimatedSplash({
               transform: [{ translateY: a.wordY }],
             }}
           >
-            Runner
+            Battle Run
           </Animated.Text>
           <Animated.Text
             style={{ fontFamily: fonts.bodySemi, fontSize: 19, color: c.text2, opacity: a.tag, transform: [{ translateY: a.tagY }] }}

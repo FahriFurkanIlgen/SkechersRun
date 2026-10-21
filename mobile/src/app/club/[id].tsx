@@ -68,7 +68,7 @@ export default function ClubScreen() {
           variant="secondary"
           onPress={() =>
             void Share.share({
-              message: `${club.name} kulübüne katıl: Runner'da Kulüpler → "Davet kodu" alanına ${club.inviteCode} yaz.`,
+              message: `${club.name} kulübüne katıl: Battle Run'da Kulüpler → "Davet kodu" alanına ${club.inviteCode} yaz.`,
             })
           }
         />

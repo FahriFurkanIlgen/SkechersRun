@@ -26,5 +26,5 @@ export async function exportLocalData(): Promise<void> {
   file.create({ overwrite: true });
   file.write(JSON.stringify(payload, null, 2));
   if (!(await Sharing.isAvailableAsync())) throw new Error('Bu cihazda paylaşım kullanılamıyor.');
-  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Runner verilerin' });
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Battle Run verilerin' });
 }

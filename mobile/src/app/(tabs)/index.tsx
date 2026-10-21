@@ -92,14 +92,14 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- routeKey covers start, minutes and type
   }, [routeKey]);
   const routeLoading = routeKey !== null && routeResult?.key !== routeKey;
-  const suggestions = !routeLoading && routeResult ? routeResult.list : [];
+  const suggestions = routeKey !== null && routeResult?.key === routeKey ? routeResult.list : [];
   const suggestion = suggestions.length > 0 ? suggestions[routeIndex % suggestions.length] : null;
   // Frame the loop when a different one is shown. Keyed on the loop itself: re-framing on every
   // recompute would move the map, refetch cells and recompute again.
   const fitKey = suggestion ? `${routeMinutes}:${suggestion.bearing}:${suggestion.points.length}:${suggestion.points[1].latitude}` : null;
   const fitPoints = suggestion?.points;
   useEffect(() => {
-    if (fitKey && fitPoints) mapRef.current?.fitToCoordinates(fitPoints, { edgePadding: { top: 160, right: 40, bottom: 340, left: 40 }, animated: true });
+    if (fitKey && fitPoints) mapRef.current?.fitToCoordinates(fitPoints, { edgePadding: { top: 170, right: 24, bottom: 440, left: 24 }, animated: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fitPoints changes with fitKey
   }, [fitKey]);
   const { activities } = useActivityHistory();
@@ -406,7 +406,7 @@ export default function MapScreen() {
             ) : suggestion ? (
               <View accessible accessibilityLiveRegion="polite" style={{ gap: 4 }}>
                 <Txt variant="body" style={{ fontFamily: fonts.bodySemi }}>
-                  {`${formatDistance(suggestion.distanceM, units)} · ${compassName(suggestion.bearing)} yönüne tur · tahmini +${suggestion.targets.length} hücre`}
+                  {`${formatDistance(suggestion.distanceM, units)} · ~${suggestion.minutes} dk · ${compassName(suggestion.bearing)} yönüne · tahmini +${suggestion.targets.length} hücre`}
                 </Txt>
                 <Txt variant="caption" muted>
                   {[
@@ -421,7 +421,7 @@ export default function MapScreen() {
                 </Txt>
               </View>
             ) : (
-              <Txt variant="bodySm" muted>Bu sürede kazanılacak yeni hücre bulunamadı; başka bir süre dene.</Txt>
+              <Txt variant="bodySm" muted>Bu süreye uygun bir tur bulunamadı. Başka bir süre dene; çevrimdışıysan bağlantı gelince tekrar dene.</Txt>
             )}
             {suggestions.length > 1 ? (
               <Button label={`Başka rota (${(routeIndex % suggestions.length) + 1}/${suggestions.length})`} variant="secondary" size="sm" onPress={() => setRouteIndex((i) => i + 1)} />
